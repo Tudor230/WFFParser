@@ -1,3 +1,5 @@
+from itertools import product
+
 from anytree import Node, RenderTree
 
 
@@ -119,8 +121,58 @@ class LogicalWFFParser:
             print("The string is a well-formed formula (WFF).")
             return self.root  # Return the root of the tree
         else:
-            raise Exception("Error: Invalid structure.")
+            if self.current_char() in ['∧', '∨', '⇒', '⇔']:
+                raise Exception("Error: Binary operation is not in parentheses")
+            elif self.current_char() == ")" or self.current_char() is None:
+                raise Exception("Error: Unbalanced parentheses detected.")
+            elif self.current_char() == "¬" and self.index < self.length - 1:
+                raise Exception("Error: ¬ operation must be enclosed in parentheses")
+            else:
+                raise Exception("Error: Invalid structure.")
 
+    def get_variables(self,node):
+        if node.is_leaf:
+            return {node.name} if self.is_atomic(node.name) else set()
+        variables = set()
+        for child in node.children:
+            variables.update(self.get_variables(child))
+        return variables
+
+    def evaluate(self, node, values):
+        if node.name == "¬":
+            return not self.evaluate(node.children[0], values)
+        elif node.name == "∧":
+            return self.evaluate(node.children[0], values) and self.evaluate(node.children[1], values)
+        elif node.name == "∨":
+            return self.evaluate(node.children[0], values) or self.evaluate(node.children[1], values)
+        elif node.name == "⇒":
+            return not self.evaluate(node.children[0], values) or self.evaluate(node.children[1], values) # P⇒Q=(¬P)∨Q
+        elif node.name == "⇔":
+            return self.evaluate(node.children[0], values) == self.evaluate(node.children[1], values)
+        else:
+            return values[node.name]
+
+    def generate_truth_table(self):
+        variables = sorted(self.get_variables(self.root))
+        truth_values=list(product([False,True],repeat=len(variables)))
+        results=[]
+        for values in truth_values:
+            assignment=dict(zip(variables,values))
+            result=self.evaluate(self.root, assignment)
+            results.append(result)
+        return results
+
+    def check_validity(self):
+        truth_table=self.generate_truth_table()
+        is_satisfiable= any(result for result in truth_table)
+        is_unsatisfiable= all(not result for result in truth_table)
+        is_valid = all(result for result in truth_table)
+        if is_valid:
+            return "The formula is valid and satisfiable."
+        elif is_unsatisfiable:
+            return "The formula is unsatisfiable and invalid."
+        elif is_satisfiable:
+            return "The formula is satisfiable but invalid."
 
 # Testing with propositions
 propositions = [
@@ -149,6 +201,7 @@ for prop in propositions:
         if root:
             for pre, _, node in RenderTree(root):
                 print(f"{pre}{node.name}")
+            print(parser.check_validity())
     except Exception as e:
         print(e)
         print("The string is not a well-formed formula (WFF).")
