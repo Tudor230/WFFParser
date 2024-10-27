@@ -9,7 +9,6 @@ class LogicalWFFParser:
         self.index = 0
         self.length = len(self.proposition)
         self.operation_count = 0
-        self.parentheses_balance = 0
         self.root = None
 
     def is_atomic(self, char):
@@ -37,18 +36,15 @@ class LogicalWFFParser:
     def parse_unary(self):
         if self.current_char() == "(" and self.proposition[self.index + 1] == "¬":
             self.operation_count += 1
-            self.parentheses_balance += 1
             print("Detected opening parenthesis before ¬ operation")
             self.advance()
             print("Detected unary connective: ¬")
             self.advance()
 
             if self.current_char() == "(":
-                self.parentheses_balance += 1
                 sub_node = self.parse_expression()
                 if sub_node:
                     if self.current_char() == ")":
-                        self.parentheses_balance -= 1
                         print("Detected closing parenthesis after ¬ operation")
                         self.advance()
                         return Node("¬", children=[sub_node])  # Create a unary node with a child
@@ -58,7 +54,6 @@ class LogicalWFFParser:
                     raise Exception("Error: Invalid expression after ¬ connective")
             elif sub_node := self.parse_atomic():
                 if self.current_char() == ")":
-                    self.parentheses_balance -= 1
                     print("Detected closing parenthesis after ¬ operation")
                     self.advance()
                     return Node("¬", children=[sub_node])  # Create a unary node with a child
@@ -72,7 +67,6 @@ class LogicalWFFParser:
         if self.current_char() == "(":
             print("Detected opening parenthesis for binary operation")
             self.operation_count += 1
-            self.parentheses_balance += 1
             self.advance()
 
             left_node = self.parse_expression()
@@ -85,7 +79,6 @@ class LogicalWFFParser:
                     right_node = self.parse_expression()
                     if right_node:
                         if self.current_char() == ")":
-                            self.parentheses_balance -= 1
                             print(f"Detected closing parenthesis for {connective} operation")
                             self.advance()
                             return Node(connective,
