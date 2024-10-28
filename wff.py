@@ -143,7 +143,9 @@ class LogicalWFFParser:
         elif node.name == "⇔":
             return self.evaluate(node.children[0], values) == self.evaluate(node.children[1], values)
         else:
-            return values[node.name]
+            if node.name in values:
+                return values[node.name]
+            raise Exception(f"Missing truth value for {node.name}")
 
     def generate_truth_table(self):
         variables = sorted(self.get_variables(self.root))
@@ -184,8 +186,10 @@ propositions = [
     "(P ∧ ((¬Q) ∧ (¬(¬(Q ⇔ (¬R))))))",
     "((P ∨ Q) ⇒ ¬(P ∨ Q)) ∧ (P ∨ (¬(¬Q)))",
     "(N∧M∧J)",
-    ""
+    "P"
 ]
+
+values={"P": True, "T": False}
 
 for prop in propositions:
     parser = LogicalWFFParser(prop)
@@ -195,6 +199,11 @@ for prop in propositions:
             for pre, _, node in RenderTree(root):
                 print(f"{pre}{node.name}")
             print(parser.check_validity())
+            try:
+                result = parser.evaluate(root, values)
+                print(f"The truth value of the proposition with {values} is {result}")
+            except Exception as e:
+                print(f"Error during evaluation: {e}")
     except Exception as e:
         print(e)
         print("The string is not a well-formed formula (WFF).")
