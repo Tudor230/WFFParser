@@ -1,5 +1,5 @@
 from itertools import product
-
+import re
 from anytree import Node, RenderTree
 
 
@@ -10,27 +10,29 @@ class LogicalWFFParser:
         self.length = len(self.proposition)
         self.operation_count = 0
         self.root = None
+        self.atomic_regex = re.compile(r"[A-Z][0-9]*")
 
     def is_atomic(self, char):
-        return char.isalpha() and len(char) == 1 and char.isupper()
+        return bool(self.atomic_regex.fullmatch(char))
 
     def current_char(self):
         if self.index < self.length:
             return self.proposition[self.index]
         return None
 
-    def advance(self):
-        self.index += 1
+    def advance(self, steps=1):
+        self.index += steps
 
     def parse_atomic(self):
-        char = self.current_char()
-        if char is not None and self.is_atomic(char):
+        match = self.atomic_regex.match(self.proposition, self.index)
+        if match:
+            atomic_token = match.group(0)
+            self.advance(len(atomic_token))
             if self.operation_count:
-                print(f"{char} is an atomic subformula")
+                print(f"{atomic_token} is an atomic subformula")
             else:
-                print(f"{char} is an atomic formula")
-            self.advance()
-            return Node(char)
+                print(f"{atomic_token} is an atomic formula")
+            return Node(atomic_token)
         return None
 
     def parse_unary(self):
@@ -124,14 +126,13 @@ class LogicalWFFParser:
                 raise Exception("Error: Invalid structure.")
 
     def get_variables(self,node):
-        if node.is_leaf:
-            return {node.name} if self.is_atomic(node.name) else set()
-        variables = set()
-        for child in node.children:
-            variables.update(self.get_variables(child))
-        return variables
+        return {leaf.name for leaf in node.leaves}
 
     def evaluate(self, node, values):
+        required_vars = self.get_variables(node)
+        missing_vars = required_vars - values.keys()
+        if missing_vars:
+            raise Exception(f"Missing truth value for {missing_vars}")
         if node.name == "¬":
             return not self.evaluate(node.children[0], values)
         elif node.name == "∧":
@@ -143,9 +144,8 @@ class LogicalWFFParser:
         elif node.name == "⇔":
             return self.evaluate(node.children[0], values) == self.evaluate(node.children[1], values)
         else:
-            if node.name in values:
-                return values[node.name]
-            raise Exception(f"Missing truth value for {node.name}")
+            return values[node.name]
+
 
     def generate_truth_table(self):
         variables = sorted(self.get_variables(self.root))
@@ -189,7 +189,10 @@ propositions = [
     "P"
 ]
 
-values={"P": True, "T": False}
+values=[
+    {"P": True, "Q": False},
+    {"P": True, "Q": True}
+]
 
 for prop in propositions:
     parser = LogicalWFFParser(prop)
@@ -200,8 +203,9 @@ for prop in propositions:
                 print(f"{pre}{node.name}")
             print(parser.check_validity())
             try:
-                result = parser.evaluate(root, values)
-                print(f"The truth value of the proposition with {values} is {result}")
+                for value in values:
+                    result = parser.evaluate(root, value)
+                    print(f"The truth value of the proposition with {value} interpretation is {result}")
             except Exception as e:
                 print(f"Error during evaluation: {e}")
     except Exception as e:
