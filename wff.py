@@ -10,7 +10,7 @@ class LogicalWFFParser:
         self.length = len(self.proposition)
         self.operation_count = 0
         self.root = None
-        self.atomic_regex = re.compile(r"[A-Z][0-9]*")
+        self.atomic_regex = re.compile(r"[A-Z][0-9]*")  # Regex for atomic propositions
 
     def is_atomic(self, char):
         return bool(self.atomic_regex.fullmatch(char))
@@ -50,7 +50,10 @@ class LogicalWFFParser:
                         print("Detected closing parenthesis after ¬ operation")
                         self.advance()
                         unary_node = Node("¬", children=[sub_node])  # Create a unary connective node with a child
-                        print("Created unary connective node:", unary_node.name)
+                        print(f"Created unary connective node: {unary_node.name} with child:")
+                        for pre, _, node in RenderTree(sub_node):
+                            print(f"{pre}{node.name}")
+                        print()
                         print("Current subtree structure:")
                         for pre, _, node in RenderTree(unary_node):
                             print(f"{pre}{node.name}")
@@ -64,7 +67,7 @@ class LogicalWFFParser:
                     print("Detected closing parenthesis after ¬ operation")
                     self.advance()
                     unary_node = Node("¬", children=[sub_node])  # Create a unary connective node with a child
-                    print("Created unary connective node:", unary_node.name)
+                    print(f"Created unary connective node: {unary_node.name} with child: {sub_node.name}")
                     print("Current subtree structure:")
                     for pre, _, node in RenderTree(unary_node):
                         print(f"{pre}{node.name}")
@@ -94,7 +97,14 @@ class LogicalWFFParser:
                             print(f"Detected closing parenthesis for {connective} operation")
                             self.advance()
                             binary_node = Node(connective, children=[left_node, right_node])  # Create a binary connective node with two children
-                            print("Created binary connective node:", binary_node.name)
+                            print(f"Created binary connective node: {binary_node.name} with the following children:")
+                            k = 1
+                            for i in binary_node.children:
+                                print(f"Child {k}:")
+                                for pre, _, node in RenderTree(i):
+                                    print(f"{pre}{node.name}")
+                                k+=1
+                            print()
                             print("Current subtree structure:")
                             for pre, _, node in RenderTree(binary_node):
                                 print(f"{pre}{node.name}")
@@ -140,7 +150,9 @@ class LogicalWFFParser:
                 raise Exception("Error: Invalid structure.")
 
     def get_variables(self, node):
-        return {leaf.name for leaf in node.leaves}
+        # Get all unique atomic variables from the node's leaves
+        vars_found = {leaf.name for leaf in node.leaves}
+        return vars_found
 
     def evaluate(self, node, values):
         required_vars = self.get_variables(node)
