@@ -49,7 +49,12 @@ class LogicalWFFParser:
                     if self.current_char() == ")":
                         print("Detected closing parenthesis after ¬ operation")
                         self.advance()
-                        return Node("¬", children=[sub_node])  # Create a unary node with a child
+                        unary_node = Node("¬", children=[sub_node])  # Create a unary connective node with a child
+                        print("Created unary connective node:", unary_node.name)
+                        print("Current subtree structure:")
+                        for pre, _, node in RenderTree(unary_node):
+                            print(f"{pre}{node.name}")
+                        return unary_node
                     else:
                         raise Exception("Error: Missing closing parenthesis after ¬ operation")
                 else:
@@ -58,7 +63,12 @@ class LogicalWFFParser:
                 if self.current_char() == ")":
                     print("Detected closing parenthesis after ¬ operation")
                     self.advance()
-                    return Node("¬", children=[sub_node])  # Create a unary node with a child
+                    unary_node = Node("¬", children=[sub_node])  # Create a unary connective node with a child
+                    print("Created unary connective node:", unary_node.name)
+                    print("Current subtree structure:")
+                    for pre, _, node in RenderTree(unary_node):
+                        print(f"{pre}{node.name}")
+                    return unary_node
                 else:
                     raise Exception("Error: Missing closing parenthesis after ¬ operation")
             else:
@@ -83,8 +93,12 @@ class LogicalWFFParser:
                         if self.current_char() == ")":
                             print(f"Detected closing parenthesis for {connective} operation")
                             self.advance()
-                            return Node(connective,
-                                        children=[left_node, right_node])  # Create a binary node with two children
+                            binary_node = Node(connective, children=[left_node, right_node])  # Create a binary connective node with two children
+                            print("Created binary connective node:", binary_node.name)
+                            print("Current subtree structure:")
+                            for pre, _, node in RenderTree(binary_node):
+                                print(f"{pre}{node.name}")
+                            return binary_node
                         else:
                             raise Exception(f"Error: Missing closing parenthesis for {connective} operation")
                     else:
@@ -125,7 +139,7 @@ class LogicalWFFParser:
             else:
                 raise Exception("Error: Invalid structure.")
 
-    def get_variables(self,node):
+    def get_variables(self, node):
         return {leaf.name for leaf in node.leaves}
 
     def evaluate(self, node, values):
@@ -140,27 +154,26 @@ class LogicalWFFParser:
         elif node.name == "∨":
             return self.evaluate(node.children[0], values) or self.evaluate(node.children[1], values)
         elif node.name == "⇒":
-            return not self.evaluate(node.children[0], values) or self.evaluate(node.children[1], values) # P⇒Q=(¬P)∨Q
+            return not self.evaluate(node.children[0], values) or self.evaluate(node.children[1], values)  # P⇒Q=(¬P)∨Q
         elif node.name == "⇔":
             return self.evaluate(node.children[0], values) == self.evaluate(node.children[1], values)
         else:
             return values[node.name]
 
-
     def generate_truth_table(self):
         variables = sorted(self.get_variables(self.root))
-        truth_values=list(product([False,True],repeat=len(variables)))
-        results=[]
+        truth_values = list(product([False, True], repeat=len(variables)))
+        results = []
         for values in truth_values:
-            assignment=dict(zip(variables,values))
-            result=self.evaluate(self.root, assignment)
+            assignment = dict(zip(variables, values))
+            result = self.evaluate(self.root, assignment)
             results.append(result)
         return results
 
     def check_validity(self):
-        truth_table=self.generate_truth_table()
-        is_satisfiable= any(result for result in truth_table)
-        is_unsatisfiable= all(not result for result in truth_table)
+        truth_table = self.generate_truth_table()
+        is_satisfiable = any(result for result in truth_table)
+        is_unsatisfiable = all(not result for result in truth_table)
         is_valid = all(result for result in truth_table)
         if is_valid:
             return "The formula is valid and satisfiable."
@@ -168,6 +181,7 @@ class LogicalWFFParser:
             return "The formula is unsatisfiable and invalid."
         elif is_satisfiable:
             return "The formula is satisfiable but invalid."
+
 
 # Testing with propositions
 propositions = [
@@ -186,10 +200,12 @@ propositions = [
     "(P ∧ ((¬Q) ∧ (¬(¬(Q ⇔ (¬R))))))",
     "((P ∨ Q) ⇒ ¬(P ∨ Q)) ∧ (P ∨ (¬(¬Q)))",
     "(N∧M∧J)",
-    "P"
+    "P",
+    "(P∧(¬P))",
+    "(P∨(¬P))"
 ]
 
-values=[
+values = [
     {"P": True, "Q": False},
     {"P": True, "Q": True}
 ]
@@ -199,8 +215,9 @@ for prop in propositions:
     try:
         root = parser.parse()
         if root:
+            print("Final tree structure:")
             for pre, _, node in RenderTree(root):
-                print(f"{pre}{node.name}")
+                print(f"{pre}{node.name}")  # Using RenderTree to print the subtree
             print(parser.check_validity())
             try:
                 for value in values:
