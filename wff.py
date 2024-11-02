@@ -1,6 +1,9 @@
 from itertools import product
 import re
+from operator import truth
+
 from anytree import Node, RenderTree
+from pwnlib.util.crc.known import generate
 
 
 class LogicalWFFParser:
@@ -205,12 +208,12 @@ class LogicalWFFParser:
         elif node.name in ["∧", "∨"]:
             # Join expressions of all children with the operator symbol
             child_expressions = [self.get_node_expression(child) for child in node.children]
-            return f"({f' {node.name} '.join(child_expressions)})"
+            return f"({f'{node.name}'.join(child_expressions)})"
         elif node.name in ["⇒", "⇔"]:
             # For binary operators like ⇒ and ⇔, assume exactly two children
             left_expr = self.get_node_expression(node.children[0])
             right_expr = self.get_node_expression(node.children[1])
-            return f"({left_expr} {node.name} {right_expr})"
+            return f"({left_expr}{node.name}{right_expr})"
         return node.name
 
     def get_subexpressions(self, node):
@@ -254,6 +257,7 @@ class LogicalWFFParser:
         # Print rows
         for row in table:
             print(" | ".join("T" if row[col] else "F" for col in headers))
+        return table
 
     def evaluate_subexpression(self, sub_expr, assignment, intermediary_results):
         # Check if sub_expr is an atomic variable
@@ -272,16 +276,12 @@ class LogicalWFFParser:
         return node
 
     def check_validity(self):
-        truth_table = []
-        variables = sorted(self.get_variables(self.root))
-        truth_values = list(product([False, True], repeat=len(variables)))
-        for values in truth_values:
-            assignment = dict(zip(variables, values))
-            result = self.evaluate_truth_table(self.root, assignment)
-            truth_table.append(result)
-        is_satisfiable = any(result for result in truth_table)
-        is_unsatisfiable = all(not result for result in truth_table)
-        is_valid = all(result for result in truth_table)
+        truth_table = self.generate_truth_table()
+        formula_values=[entry[list(entry.keys())[-1]] for entry in truth_table]
+        print(formula_values)
+        is_satisfiable = any(formula_values)
+        is_unsatisfiable = all(not value for value in formula_values)
+        is_valid = all(formula_values)
         if is_valid:
             return "The formula is valid and satisfiable."
         elif is_unsatisfiable:
@@ -325,7 +325,6 @@ for prop in propositions:
             print("Final tree structure:")
             for pre, _, node in RenderTree(root):
                 print(f"{pre}{node.name}")  # Using RenderTree to print the subtree
-            parser.generate_truth_table()
             print(parser.check_validity())
             try:
                 for value in values:
