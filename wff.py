@@ -87,34 +87,45 @@ class LogicalWFFParser:
             left_node = self.parse_expression()
             if left_node:
                 connective = self.current_char()
-                if connective in ['∧', '∨', '⇒', '⇔']:
+                children=[left_node]
+                # Allow consecutive same-type connectives (like ∧∧ or ∨∨)
+                while connective in ['∧', '∨']:
                     print(f"Detected binary connective: {connective}")
-                    self.advance()
-
-                    right_node = self.parse_expression()
-                    if right_node:
-                        if self.current_char() == ")":
-                            print(f"Detected closing parenthesis for {connective} operation")
-                            self.advance()
-                            binary_node = Node(connective, children=[left_node, right_node])  # Create a binary connective node with two children
-                            print(f"Created binary connective node: {binary_node.name} with the following children:")
-                            k = 1
-                            for i in binary_node.children:
-                                print(f"Child {k}:")
-                                for pre, _, node in RenderTree(i):
-                                    print(f"{pre}{node.name}")
-                                k+=1
-                            print()
-                            print("Current subtree structure:")
-                            for pre, _, node in RenderTree(binary_node):
-                                print(f"{pre}{node.name}")
-                            return binary_node
-                        else:
-                            raise Exception(f"Error: Missing closing parenthesis for {connective} operation")
+                    self.advance()  # Move past the connective
+                    next_node = self.parse_expression()  # Parse the next expression
+                    if next_node:
+                        children.append(next_node)
                     else:
                         raise Exception(f"Error: Invalid expression after {connective} connective")
+                    if self.current_char() == ")":
+                        break
+                binary_node = Node(connective, children=children)
+                if connective in ['⇒', '⇔']:
+                    print(f"Detected binary connective: {connective}")
+                    self.advance()  # Move past the connective
+                    right_node = self.parse_expression()  # Parse the right expression
+                    if right_node:
+                        # Create the final binary node with left and right parts
+                        binary_node = Node(connective, children=[left_node, right_node])
+                    else:
+                        raise Exception(f"Error: Invalid expression after {connective} connective")
+
+
+                if self.current_char() == ")":
+                    print(f"Detected closing parenthesis for {connective} operation")
+                    self.advance()
+                    print(f"Created binary connective node: {binary_node.name} with the following children:")
+                    for k, child in enumerate(binary_node.children, start=1):
+                        print(f"Child {k}:")
+                        for pre, _, node in RenderTree(child):
+                            print(f"{pre}{node.name}")
+                    print()
+                    print("Current subtree structure:")
+                    for pre, _, node in RenderTree(binary_node):
+                        print(f"{pre}{node.name}")
+                    return binary_node
                 else:
-                    raise Exception("Error: Expected binary connective inside parentheses")
+                    raise Exception(f"Error: Missing closing parenthesis for {connective} operation")
         return None
 
     def parse_expression(self):
@@ -154,36 +165,120 @@ class LogicalWFFParser:
         vars_found = {leaf.name for leaf in node.leaves}
         return vars_found
 
-    def evaluate(self, node, values):
+    def evaluate_truth_table(self, node, values, intermediary_results={}):
+        # Ensure that all required variables are provided in the values dictionary
         required_vars = self.get_variables(node)
         missing_vars = required_vars - values.keys()
         if missing_vars:
             raise Exception(f"Missing truth value for {missing_vars}")
+
+        # Check if result for this node is already computed
+        if node in intermediary_results:
+            return intermediary_results[node]
+
+        # Evaluate based on the type of logical operation in the node
         if node.name == "¬":
-            return not self.evaluate(node.children[0], values)
+            result = not self.evaluate_truth_table(node.children[0], values, intermediary_results)
         elif node.name == "∧":
-            return self.evaluate(node.children[0], values) and self.evaluate(node.children[1], values)
+            result = all(self.evaluate_truth_table(child, values, intermediary_results) for child in node.children)
         elif node.name == "∨":
-            return self.evaluate(node.children[0], values) or self.evaluate(node.children[1], values)
+            result = any(self.evaluate_truth_table(child, values, intermediary_results) for child in node.children)
         elif node.name == "⇒":
-            return not self.evaluate(node.children[0], values) or self.evaluate(node.children[1], values)  # P⇒Q=(¬P)∨Q
+            left_result = self.evaluate_truth_table(node.children[0], values, intermediary_results)
+            right_result = self.evaluate_truth_table(node.children[1], values, intermediary_results)
+            result = not left_result or right_result
         elif node.name == "⇔":
-            return self.evaluate(node.children[0], values) == self.evaluate(node.children[1], values)
+            left_result = self.evaluate_truth_table(node.children[0], values, intermediary_results)
+            right_result = self.evaluate_truth_table(node.children[1], values, intermediary_results)
+            result = left_result == right_result
         else:
-            return values[node.name]
+            result = values[node.name]
+
+        intermediary_results[node] = result
+        return result
+
+    def get_node_expression(self, node):
+        if node.is_leaf:
+            return node.name
+        elif node.name == "¬":
+            return f"(¬{self.get_node_expression(node.children[0])})"
+        elif node.name in ["∧", "∨"]:
+            # Join expressions of all children with the operator symbol
+            child_expressions = [self.get_node_expression(child) for child in node.children]
+            return f"({f' {node.name} '.join(child_expressions)})"
+        elif node.name in ["⇒", "⇔"]:
+            # For binary operators like ⇒ and ⇔, assume exactly two children
+            left_expr = self.get_node_expression(node.children[0])
+            right_expr = self.get_node_expression(node.children[1])
+            return f"({left_expr} {node.name} {right_expr})"
+        return node.name
+
+    def get_subexpressions(self, node):
+        subexpressions = []
+
+        def traverse(n):
+            for child in n.children:
+                traverse(child)
+            if not n.is_leaf:
+                expression = self.get_node_expression(n)
+                subexpressions.append(expression)
+
+        traverse(node)
+        return subexpressions
 
     def generate_truth_table(self):
         variables = sorted(self.get_variables(self.root))
         truth_values = list(product([False, True], repeat=len(variables)))
-        results = []
+        table = []
+
+        subexpressions = self.get_subexpressions(self.root)
+        headers = variables + subexpressions
+
         for values in truth_values:
             assignment = dict(zip(variables, values))
-            result = self.evaluate(self.root, assignment)
-            results.append(result)
-        return results
+            row = {var: assignment[var] for var in variables}
+
+            intermediary_results = {}
+
+            # Calculate truth values for each subexpression
+            for sub_expr in headers[len(variables):]:  # Skip atomic variables in headers
+                result = self.evaluate_subexpression(sub_expr, assignment, intermediary_results)
+                row[sub_expr] = result
+
+            table.append(row)
+
+        # Print headers
+        print(" | ".join(headers))
+        print("-" * (len(headers) * 8))  # Adjust separator line based on column count
+
+        # Print rows
+        for row in table:
+            print(" | ".join("T" if row[col] else "F" for col in headers))
+
+    def evaluate_subexpression(self, sub_expr, assignment, intermediary_results):
+        # Check if sub_expr is an atomic variable
+        if sub_expr in assignment:
+            return assignment[sub_expr]
+
+        # Evaluate intermediate expressions
+        sub_expr_node = self.find_subexpression_node(sub_expr, self.root)
+        return self.evaluate_truth_table(sub_expr_node, assignment, intermediary_results)
+
+    def find_subexpression_node(self, sub_expr, node):
+        # Traverse the tree to find the node matching the subexpression
+        for n in node.descendants:
+            if self.get_node_expression(n) == sub_expr:
+                return n
+        return node
 
     def check_validity(self):
-        truth_table = self.generate_truth_table()
+        truth_table = []
+        variables = sorted(self.get_variables(self.root))
+        truth_values = list(product([False, True], repeat=len(variables)))
+        for values in truth_values:
+            assignment = dict(zip(variables, values))
+            result = self.evaluate_truth_table(self.root, assignment)
+            truth_table.append(result)
         is_satisfiable = any(result for result in truth_table)
         is_unsatisfiable = all(not result for result in truth_table)
         is_valid = all(result for result in truth_table)
@@ -197,29 +292,29 @@ class LogicalWFFParser:
 
 # Testing with propositions
 propositions = [
-    "(¬(P ∧ Q))",
-    "(¬P ∨ (Q ∧ R))",
-    "(¬(¬P)",
-    "((P ∧ Q))",
-    "(P ∧ Q)",
-    "(P ∨ (Q ∧ R))",
-    "(P ∧ Q)¬",
-    "(P ∨ (Q ∧ R)))",
-    "¬(P ∨ (Q ∧ R)",
-    "(((P ⇒ Q) ∨ S) ⇔ T)",
-    "((P ⇒ (Q ∧ (S ⇒ T))))",
-    "(¬(B(¬Q)) ∧ R)",
-    "(P ∧ ((¬Q) ∧ (¬(¬(Q ⇔ (¬R))))))",
-    "((P ∨ Q) ⇒ ¬(P ∨ Q)) ∧ (P ∨ (¬(¬Q)))",
-    "(N∧M∧J)",
-    "P",
-    "(P∧(¬P))",
-    "(P∨(¬P))"
+    # "(¬(P ∧ Q))",
+    # "(¬P ∨ (Q ∧ R))",
+    # "(¬(¬P)",
+    # "((P ∧ Q))",
+    # "(P ∧ Q)",
+    "(P ∨ Q ∨ R ∨ T ∨ Q)",
+    # "(P ∧ Q)¬",
+    # "(P ∧ Q ∧ R)",
+    # "(¬(P ∧ Q ∧ R))",
+    # "(((P ⇒ Q) ∨ S) ⇔ T)",
+    # "((P ⇒ (Q ∧ (S ⇒ T))))",
+    # "(¬(B(¬Q)) ∧ R)",
+    # "(P ∧ ((¬Q) ∧ (¬(¬(Q ⇔ (¬R))))))",
+    # "(((P ∨ Q) ⇒ (¬(P ∨ Q))) ∧ (P ∨ (¬(¬Q))))",
+    # "(N∧M∧J)",
+    # "P",
+    # "(P∧(¬P))",
+    # "(P∨(¬P))"
 ]
 
 values = [
-    {"P": True, "Q": False},
-    {"P": True, "Q": True}
+    {"P": True, "Q": False, "R": True},
+    {"P": True, "Q": True, "R": True},
 ]
 
 for prop in propositions:
@@ -230,10 +325,11 @@ for prop in propositions:
             print("Final tree structure:")
             for pre, _, node in RenderTree(root):
                 print(f"{pre}{node.name}")  # Using RenderTree to print the subtree
+            parser.generate_truth_table()
             print(parser.check_validity())
             try:
                 for value in values:
-                    result = parser.evaluate(root, value)
+                    result = parser.evaluate_truth_table(root, value)
                     print(f"The truth value of the proposition with {value} interpretation is {result}")
             except Exception as e:
                 print(f"Error during evaluation: {e}")
