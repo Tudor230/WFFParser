@@ -64,7 +64,7 @@ class ShuntingYardConverter:
                 else:  # Binary operation
                     right = stack.pop()
                     left = stack.pop()
-                    if re.search(pattern, left) is not None:
+                    if token in {'∨', '∧'} and re.search(re.escape(token), left) is not None:
                        new_left=re.sub(r"[()]","",left)
                        print(new_left)
                        expression = f"({new_left} {token} {right})"
@@ -82,7 +82,7 @@ class ShuntingYardConverter:
 expressions = [
     "P ∧ (Q ⇒ R)",
     "¬(P ∧ Q)",
-    "P ∧ Q ∧ R",
+    "P ∧ Q ∧ R ∧ T",
     "¬(P ∨ Q)",
     "P ⇒ Q ⇔ R"
 ]
