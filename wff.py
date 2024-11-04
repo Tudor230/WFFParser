@@ -5,6 +5,8 @@ from operator import truth
 from anytree import Node, RenderTree
 from pwnlib.util.crc.known import generate
 
+from CA.night_n_day import header
+
 
 class LogicalWFFParser:
     def __init__(self, proposition):
@@ -229,7 +231,7 @@ class LogicalWFFParser:
         traverse(node)
         return subexpressions
 
-    def generate_truth_table(self):
+    def generate_truth_table(self, do_print=False):
         variables = sorted(self.get_variables(self.root))
         truth_values = list(product([False, True], repeat=len(variables)))
         table = []
@@ -255,8 +257,10 @@ class LogicalWFFParser:
         print("-" * (len(headers) * 8))  # Adjust separator line based on column count
 
         # Print rows
-        for row in table:
-            print(" | ".join("T" if row[col] else "F" for col in headers))
+        if do_print:
+            for row in table:
+                print(" | ".join("T" if row[col] else "F" for col in headers))
+        print(table)
         return table
 
     def evaluate_subexpression(self, sub_expr, assignment, intermediary_results):
@@ -292,12 +296,12 @@ class LogicalWFFParser:
 
 # Testing with propositions
 propositions = [
-    # "(¬(P ∧ Q))",
+    "(¬(P ∧ Q))",
     # "(¬P ∨ (Q ∧ R))",
     # "(¬(¬P)",
     # "((P ∧ Q))",
     # "(P ∧ Q)",
-    "(P ∨ Q ∨ R ∨ T ∨ Q)",
+    # "(P ∨ Q ∨ R ∨ T ∨ Q)",
     # "(P ∧ Q)¬",
     # "(P ∧ Q ∧ R)",
     # "(¬(P ∧ Q ∧ R))",
@@ -326,6 +330,7 @@ for prop in propositions:
             for pre, _, node in RenderTree(root):
                 print(f"{pre}{node.name}")  # Using RenderTree to print the subtree
             print(parser.check_validity())
+            parser.generate_truth_table(do_print=True)
             try:
                 for value in values:
                     result = parser.evaluate_truth_table(root, value)
