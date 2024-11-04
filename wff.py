@@ -254,12 +254,11 @@ class LogicalWFFParser:
             table.append(row)
 
         # Print headers with dynamic width alignment
-        header_row = " | ".join(header.center(col_widths[header]) for header in headers)
-        print(header_row)
-        print("-" * len(header_row))  # Separator line based on total header width
-
-        # Print rows with dynamic width alignment
         if do_print:
+            header_row = " | ".join(header.center(col_widths[header]) for header in headers)
+            print(header_row)
+            print("-" * len(header_row))  # Separator line based on total header width
+
             for row in table:
                 row_text = " | ".join(
                     ("T" if row[col] else "F").center(col_widths[col]) for col in headers
