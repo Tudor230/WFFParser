@@ -1,9 +1,7 @@
 from itertools import product
 import re
-from operator import truth
 
 from anytree import Node, RenderTree
-from pwnlib.util.crc.known import generate
 
 
 class LogicalWFFParser:
@@ -168,8 +166,10 @@ class LogicalWFFParser:
         vars_found = {leaf.name for leaf in node.leaves}
         return vars_found
 
-    def evaluate_truth_table(self, node, values, intermediary_results={}):
+    def evaluate_truth_table(self, node, values, intermediary_results=None):
         # Ensure that all required variables are provided in the values dictionary
+        if intermediary_results is None:
+            intermediary_results = {}
         required_vars = self.get_variables(node)
         missing_vars = required_vars - values.keys()
         if missing_vars:
@@ -237,6 +237,9 @@ class LogicalWFFParser:
         subexpressions = self.get_subexpressions(self.root)
         headers = variables + subexpressions
 
+        # Calculate column width for each header based on its length + 2 spaces
+        col_widths = {header: len(header) + 2 for header in headers}
+
         for values in truth_values:
             assignment = dict(zip(variables, values))
             row = {var: assignment[var] for var in variables}
@@ -250,13 +253,18 @@ class LogicalWFFParser:
 
             table.append(row)
 
-        # Print headers
-        print(" | ".join(headers))
-        print("-" * (len(headers) * 8))  # Adjust separator line based on column count
+        # Print headers with dynamic width alignment
+        header_row = " | ".join(header.center(col_widths[header]) for header in headers)
+        print(header_row)
+        print("-" * len(header_row))  # Separator line based on total header width
 
-        # Print rows
+        # Print rows with dynamic width alignment
         for row in table:
-            print(" | ".join("T" if row[col] else "F" for col in headers))
+            row_text = " | ".join(
+                ("T" if row[col] else "F").center(col_widths[col]) for col in headers
+            )
+            print(row_text)
+
         return table
 
     def evaluate_subexpression(self, sub_expr, assignment, intermediary_results):
@@ -297,14 +305,14 @@ propositions = [
     # "(¬(¬P)",
     # "((P ∧ Q))",
     # "(P ∧ Q)",
-    "(P ∨ Q ∨ R ∨ T ∨ Q)",
+    # "(P ∨ Q ∨ R ∨ T ∨ Q)",
     # "(P ∧ Q)¬",
     # "(P ∧ Q ∧ R)",
     # "(¬(P ∧ Q ∧ R))",
     # "(((P ⇒ Q) ∨ S) ⇔ T)",
     # "((P ⇒ (Q ∧ (S ⇒ T))))",
     # "(¬(B(¬Q)) ∧ R)",
-    # "(P ∧ ((¬Q) ∧ (¬(¬(Q ⇔ (¬R))))))",
+    "(P ∧ ((¬Q) ∧ (¬(¬(Q ⇔ (¬R))))))",
     # "(((P ∨ Q) ⇒ (¬(P ∨ Q))) ∧ (P ∨ (¬(¬Q))))",
     # "(N∧M∧J)",
     # "P",

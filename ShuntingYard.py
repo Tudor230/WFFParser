@@ -57,7 +57,6 @@ class ShuntingYardConverter:
         for token in self.output_queue:
             print(f"Queue: {self.output_queue}")
             if token in self.precedence:
-                pattern = re.escape(token)
                 if token == '¬':  # Unary operation
                     operand = stack.pop()
                     expression = f"(¬{operand})"
@@ -65,7 +64,7 @@ class ShuntingYardConverter:
                     right = stack.pop()
                     left = stack.pop()
                     if token in {'∨', '∧'} and re.search(re.escape(token), left) is not None:
-                       new_left=re.sub(r"[()]","",left)
+                       new_left=left[1:-1]
                        print(new_left)
                        expression = f"({new_left} {token} {right})"
                     else : expression = f"({left} {token} {right})"
@@ -82,9 +81,10 @@ class ShuntingYardConverter:
 expressions = [
     "P ∧ (Q ⇒ R)",
     "¬(P ∧ Q)",
-    "P ∧ Q ∧ R ∧ T",
+    "P ∧ (Q ∧ R) ∧ T",
     "¬(P ∨ Q)",
-    "P ⇒ Q ⇔ R"
+    "P ⇒ Q ⇔ R",
+    "(P ⇒ Q) ∧ ¬Q ∧ ¬P"
 ]
 
 for expr in expressions:
