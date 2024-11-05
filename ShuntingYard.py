@@ -16,7 +16,6 @@ class ShuntingYardConverter:
             '⇔': 0  # EQUIVALENT
         }
         self.right_associative = {'¬'}
-
     def is_operator(self, token):
         return token in self.precedence
 
@@ -25,10 +24,9 @@ class ShuntingYardConverter:
 
     def convert(self):
         # Tokenize the input
-        tokens = re.findall(r"[A-Z][0-9]*|¬|∧|∨|⇒|⇔|[()]", self.expression)
-
+        tokens = re.findall(r"[A-Z][0-9]*|¬|∧|∨|⇒|⇔|[()]|⊤|⊥", self.expression)
         for token in tokens:
-            if re.match(r"[A-Z][0-9]*", token):  # Atomic proposition
+            if re.match(r"[A-Z][0-9]*|⊤|⊥", token):  # Atomic proposition
                 self.output_queue.append(token)
             elif token == '(':
                 self.operator_stack.append(token)
@@ -55,7 +53,6 @@ class ShuntingYardConverter:
         stack = []
 
         for token in self.output_queue:
-            print(f"Queue: {self.output_queue}")
             if token in self.precedence:
                 if token == '¬':  # Unary operation
                     operand = stack.pop()
@@ -65,29 +62,14 @@ class ShuntingYardConverter:
                     left = stack.pop()
                     if token in {'∨', '∧'} and re.search(re.escape(token), left) is not None:
                        new_left=left[1:-1]
-                       print(new_left)
-                       expression = f"({new_left} {token} {right})"
-                    else : expression = f"({left} {token} {right})"
+                       expression = f"({new_left}{token}{right})"
+                    else : expression = f"({left}{token}{right})"
                 stack.append(expression)
             else:
                 stack.append(token)
-            print(stack)
+        if len(stack) != 1:
+            raise Exception("Error converting from relaxed syntax to strong syntax")
 
         return stack[0]
 
 
-
-# Example usage:
-expressions = [
-    "P ∧ (Q ⇒ R)",
-    "¬(P ∧ Q)",
-    "P ∧ (Q ∧ R) ∧ T",
-    "¬(P ∨ Q)",
-    "P ⇒ Q ⇔ R",
-    "(P ⇒ Q) ∧ ¬Q ∧ ¬P"
-]
-
-for expr in expressions:
-    converter = ShuntingYardConverter(expr)
-    strict_syntax = converter.convert()
-    print(f"Original: {expr}\nConverted: {strict_syntax}\n")

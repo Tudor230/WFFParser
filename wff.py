@@ -1,6 +1,8 @@
 from itertools import product
 import re
+from operator import truth
 
+from ShuntingYard import ShuntingYardConverter
 from anytree import Node, RenderTree
 
 
@@ -11,7 +13,7 @@ class LogicalWFFParser:
         self.length = len(self.proposition)
         self.operation_count = 0
         self.root = None
-        self.atomic_regex = re.compile(r"[A-Z][0-9]*")  # Regex for atomic propositions
+        self.atomic_regex = re.compile(r"[A-Z][0-9]*|⊤|⊥")  # Regex for atomic propositions
 
     def is_atomic(self, char):
         return bool(self.atomic_regex.fullmatch(char))
@@ -36,7 +38,7 @@ class LogicalWFFParser:
             return Node(atomic_token)
         return None
 
-    def parse_unary(self):
+    def parse_unary(self, print_tree):
         if self.current_char() == "(" and self.proposition[self.index + 1] == "¬":
             self.operation_count += 1
             print("Detected opening parenthesis before ¬ operation")
@@ -45,19 +47,20 @@ class LogicalWFFParser:
             self.advance()
 
             if self.current_char() == "(":
-                sub_node = self.parse_expression()
+                sub_node = self.parse_expression(print_tree)
                 if sub_node:
                     if self.current_char() == ")":
                         print("Detected closing parenthesis after ¬ operation")
                         self.advance()
                         unary_node = Node("¬", children=[sub_node])  # Create a unary connective node with a child
-                        print(f"Created unary connective node: {unary_node.name} with child:")
-                        for pre, _, node in RenderTree(sub_node):
-                            print(f"{pre}{node.name}")
-                        print()
-                        print("Current subtree structure:")
-                        for pre, _, node in RenderTree(unary_node):
-                            print(f"{pre}{node.name}")
+                        if print_tree:
+                            print(f"Created unary connective node: {unary_node.name} with child:")
+                            for pre, _, node in RenderTree(sub_node):
+                                print(f"{pre}{node.name}")
+                            print()
+                            print("Current subtree structure:")
+                            for pre, _, node in RenderTree(unary_node):
+                                print(f"{pre}{node.name}")
                         return unary_node
                     else:
                         raise Exception("Error: Missing closing parenthesis after ¬ operation")
@@ -68,10 +71,11 @@ class LogicalWFFParser:
                     print("Detected closing parenthesis after ¬ operation")
                     self.advance()
                     unary_node = Node("¬", children=[sub_node])  # Create a unary connective node with a child
-                    print(f"Created unary connective node: {unary_node.name} with child: {sub_node.name}")
-                    print("Current subtree structure:")
-                    for pre, _, node in RenderTree(unary_node):
-                        print(f"{pre}{node.name}")
+                    if print_tree:
+                        print(f"Created unary connective node: {unary_node.name} with child: {sub_node.name}")
+                        print("Current subtree structure:")
+                        for pre, _, node in RenderTree(unary_node):
+                            print(f"{pre}{node.name}")
                     return unary_node
                 else:
                     raise Exception("Error: Missing closing parenthesis after ¬ operation")
@@ -79,13 +83,13 @@ class LogicalWFFParser:
                 raise Exception("Error: The ¬ connective must be followed by an expression")
         return None
 
-    def parse_binary(self):
+    def parse_binary(self, print_tree):
         if self.current_char() == "(":
             print("Detected opening parenthesis for binary operation")
             self.operation_count += 1
             self.advance()
 
-            left_node = self.parse_expression()
+            left_node = self.parse_expression(print_tree)
             if left_node:
                 connective = self.current_char()
                 children=[left_node]
@@ -93,7 +97,7 @@ class LogicalWFFParser:
                 while connective in ['∧', '∨']:
                     print(f"Detected binary connective: {connective}")
                     self.advance()  # Move past the connective
-                    next_node = self.parse_expression()  # Parse the next expression
+                    next_node = self.parse_expression(print_tree)  # Parse the next expression
                     if next_node:
                         children.append(next_node)
                     else:
@@ -104,52 +108,55 @@ class LogicalWFFParser:
                 if connective in ['⇒', '⇔']:
                     print(f"Detected binary connective: {connective}")
                     self.advance()  # Move past the connective
-                    right_node = self.parse_expression()  # Parse the right expression
+                    right_node = self.parse_expression(print_tree)  # Parse the right expression
                     if right_node:
                         # Create the final binary node with left and right parts
                         binary_node = Node(connective, children=[left_node, right_node])
                     else:
                         raise Exception(f"Error: Invalid expression after {connective} connective")
 
-
-                if self.current_char() == ")":
+                if self.current_char() == ")" and connective !=")":
                     print(f"Detected closing parenthesis for {connective} operation")
                     self.advance()
-                    print(f"Created binary connective node: {binary_node.name} with the following children:")
-                    for k, child in enumerate(binary_node.children, start=1):
-                        print(f"Child {k}:")
-                        for pre, _, node in RenderTree(child):
+                    if print_tree:
+                        print(f"Created binary connective node: {binary_node.name} with the following children:")
+                        for k, child in enumerate(binary_node.children, start=1):
+                            print(f"Child {k}:")
+                            for pre, _, node in RenderTree(child):
+                                print(f"{pre}{node.name}")
+                        print()
+                        print("Current subtree structure:")
+                        for pre, _, node in RenderTree(binary_node):
                             print(f"{pre}{node.name}")
-                    print()
-                    print("Current subtree structure:")
-                    for pre, _, node in RenderTree(binary_node):
-                        print(f"{pre}{node.name}")
                     return binary_node
                 else:
-                    raise Exception(f"Error: Missing closing parenthesis for {connective} operation")
+                    raise Exception(f"Error: Missing closing parenthesis for {connective if connective != ')' else 'binary'} operation")
         return None
 
-    def parse_expression(self):
+    def parse_expression(self,print_tree):
         # Try parsing atomic, unary, or binary and return the Node
         if node := self.parse_atomic():
             return node
-        if node := self.parse_unary():
+        if node := self.parse_unary(print_tree):
             return node
-        if node := self.parse_binary():
+        if node := self.parse_binary(print_tree):
             return node
         return None
 
-    def parse(self):
+    def parse(self, print_tree=False):
         print(f"Starting parsing for: '{self.proposition}'")
         if len(self.proposition) == 0:
             raise Exception("Error: Empty proposition")
 
         # Parse and store the root of the tree
-        self.root = self.parse_expression()
+        self.root = self.parse_expression(print_tree)
 
         # If we reach the end of the proposition and parsing was successful
         if self.root and self.index == self.length:
             print("The string is a well-formed formula (WFF).")
+            print("Final tree structure:")
+            for pre, _, node in RenderTree(self.root):
+                print(f"{pre}{node.name}")
             return self.root  # Return the root of the tree
         else:
             if self.current_char() in ['∧', '∨', '⇒', '⇔']:
@@ -231,19 +238,29 @@ class LogicalWFFParser:
 
     def generate_truth_table(self, do_print=False):
         variables = sorted(self.get_variables(self.root))
-        truth_values = list(product([False, True], repeat=len(variables)))
+        always_true = '⊤' in variables
+        always_false = '⊥' in variables
+        free_variables = [var for var in variables if var not in ['⊤', '⊥']]
+        truth_values = list(product([False, True], repeat=len(free_variables)))
         table = []
 
         subexpressions = self.get_subexpressions(self.root)
-        headers = variables + subexpressions
+        headers = free_variables + (['⊥'] if always_false else []) + (['⊤'] if always_true else []) + subexpressions
 
         # Calculate column width for each header based on its length + 2 spaces
         col_widths = {header: len(header) + 2 for header in headers}
 
         for values in truth_values:
-            assignment = dict(zip(variables, values))
+            assignment = dict(zip(free_variables, values))
+            if always_true:
+                assignment['⊤'] = True
+            if always_false:
+                assignment['⊥'] = False
             row = {var: assignment[var] for var in variables}
-
+            if always_true:
+                row['⊤'] = True
+            if always_false:
+                row['⊥'] = False
             intermediary_results = {}
 
             # Calculate truth values for each subexpression
@@ -255,16 +272,26 @@ class LogicalWFFParser:
 
         # Print headers with dynamic width alignment
         if do_print:
-            header_row = " | ".join(header.center(col_widths[header]) for header in headers)
-            print(header_row)
-            print("-" * len(header_row))  # Separator line based on total header width
-
-            for row in table:
-                row_text = " | ".join(
-                    ("T" if row[col] else "F").center(col_widths[col]) for col in headers
-                )
-                print(row_text)
+            self.print_truth_table(table)
         return table
+
+    def print_truth_table(self, table):
+        if not table:
+            print("No data to display.")
+            return
+
+        headers = list(table[0].keys())
+        col_widths = {header: len(header) + 2 for header in headers}
+
+        header_row = " | ".join(header.center(col_widths[header]) for header in headers)
+        print(header_row)
+        print("-" * len(header_row))  # Separator line based on total header width
+
+        for row in table:
+            row_text = " | ".join(
+                ("T" if row[col] else "F").center(col_widths[col]) for col in headers
+            )
+            print(row_text)
 
     def evaluate_subexpression(self, sub_expr, assignment, intermediary_results):
         # Check if sub_expr is an atomic variable
@@ -276,16 +303,19 @@ class LogicalWFFParser:
         return self.evaluate_truth_table(sub_expr_node, assignment, intermediary_results)
 
     def find_subexpression_node(self, sub_expr, node):
-        # Traverse the tree to find the node matching the subexpression
-        for n in node.descendants:
-            if self.get_node_expression(n) == sub_expr:
-                return n
-        return node
+        stack = [node]  # Initialize a stack for depth-first search
+        while stack:
+            current_node = stack.pop()
+            # Check if the current node matches the exact expression
+            if self.get_node_expression(current_node) == sub_expr:
+                return current_node
+            # Extend the stack with children nodes
+            stack.extend(current_node.children)
+        return None
 
     def check_validity(self):
         truth_table = self.generate_truth_table()
-        formula_values=[entry[list(entry.keys())[-1]] for entry in truth_table]
-        print(formula_values)
+        formula_values = [entry[list(entry.keys())[-1]] for entry in truth_table]
         is_satisfiable = any(formula_values)
         is_unsatisfiable = all(not value for value in formula_values)
         is_valid = all(formula_values)
@@ -296,51 +326,242 @@ class LogicalWFFParser:
         elif is_satisfiable:
             return "The formula is satisfiable but invalid."
 
+    def check_equivalence(self, other_parser):
+        self_table = self.generate_truth_table()
+        other_table = other_parser.generate_truth_table()
 
-# Testing with propositions
-propositions = [
-    # "(¬(P ∧ Q))",
-    # "(¬P ∨ (Q ∧ R))",
-    # "(¬(¬P)",
-    # "((P ∧ Q))",
-    # "(P ∧ Q)",
-    # "(P ∨ Q ∨ R ∨ T ∨ Q)",
-    # "(P ∧ Q)¬",
-    # "(P ∧ Q ∧ R)",
-    # "(¬(P ∧ Q ∧ R))",
-    # "(((P ⇒ Q) ∨ S) ⇔ T)",
-    # "((P ⇒ (Q ∧ (S ⇒ T))))",
-    # "(¬(B(¬Q)) ∧ R)",
-    "(P ∧ ((¬Q) ∧ (¬(¬(Q ⇔ (¬R))))))",
-    # "(((P ∨ Q) ⇒ (¬(P ∨ Q))) ∧ (P ∨ (¬(¬Q))))",
-    # "(N∧M∧J)",
-    # "P",
-    # "(P∧(¬P))",
-    # "(P∨(¬P))"
-]
+        self_vars = set(self.get_variables(self.root))
+        other_vars = set(other_parser.get_variables(other_parser.root))
 
-values = [
-    {"P": True, "Q": False, "R": True},
-    {"P": True, "Q": True, "R": True},
-]
+        common_vars = self_vars.intersection(other_vars)
 
-for prop in propositions:
-    parser = LogicalWFFParser(prop)
-    try:
-        root = parser.parse()
-        if root:
-            print("Final tree structure:")
-            for pre, _, node in RenderTree(root):
-                print(f"{pre}{node.name}")  # Using RenderTree to print the subtree
-            print(parser.check_validity())
-            parser.generate_truth_table(do_print=True)
+        # Build filtered truth tables based on common variables
+        filtered_self_table = [
+            {var: row[var] for var in common_vars} | {'result': self.evaluate_truth_table(self.root, row)}
+            for row in self_table
+        ]
+
+        filtered_other_table = [
+            {var: row[var] for var in common_vars} | {
+                'result': other_parser.evaluate_truth_table(other_parser.root, row)}
+            for row in other_table
+        ]
+        # Compare the truth values of both tables row by row based on the common variable assignments
+        # Create a mapping of results based on common variables for self
+        self_result_map = {tuple(row[var] for var in common_vars): row['result'] for row in filtered_self_table}
+        other_result_map = {tuple(row[var] for var in common_vars): row['result'] for row in filtered_other_table}
+        for key in self_result_map:
+            if key in other_result_map:
+                if self_result_map[key] != other_result_map[key]:
+                    return False
+            else:
+                return False
+        return True
+
+    def check_consequence(self, premises, conclusion):
+        # Generate the truth table for the given premises and conclusion
+        headers,truth_table = self.generate_consequence_truth_table(premises, conclusion)
+        self.print_consequence_truth_table(headers, truth_table)
+        for row in truth_table:
+            premises_true = True
+            for premise in premises:
+                if row[premise] is False:
+                    premises_true = False
+                    break
+            if premises_true and row[conclusion] is False:
+                return False
+        return True
+
+    def generate_consequence_truth_table(self, premises, conclusion):
+        # Parse the premises and conclusion
+        parsed_premises = [LogicalWFFParser(premise).parse() for premise in premises]
+        parsed_conclusion = LogicalWFFParser(conclusion).parse()
+        # Gather all variables from premises and conclusion
+        all_vars = set()
+        for premise in parsed_premises:
+            all_vars.update(self.get_variables(premise))
+        all_vars.update(self.get_variables(parsed_conclusion))
+
+        # Generate truth value combinations for all variables
+        truth_values = list(product([False, True], repeat=len(all_vars)))
+        table = []
+        # Create headers for the truth table
+        headers = sorted(all_vars)
+        subexpressions = []
+
+        # Collect subexpressions for premises
+        for premise in parsed_premises:
+            subexpressions.extend(self.get_subexpressions(premise))
+
+        # Add subexpressions for conclusion
+        subexpressions.extend(self.get_subexpressions(parsed_conclusion))
+        headers.extend(subexpressions)
+
+        # Evaluate each combination of truth values
+        for values in truth_values:
+            assignment = dict(zip(sorted(all_vars), values))
+            # Calculate truth values for premises and conclusion
+            row = {var: assignment[var] for var in sorted(all_vars)}
+            # Calculate truth values for each subexpression
+            intermediary_results = {}
+            for sub_expr in subexpressions:
+                sub_expr_node = None
+                # Try to find the subexpression node in each premise first
+                for premise in parsed_premises:
+                    sub_expr_node = self.find_subexpression_node(sub_expr, premise)
+                    if sub_expr_node:
+                        break
+
+                # If not found in premises, try the conclusion
+                if not sub_expr_node:
+                    sub_expr_node = self.find_subexpression_node(sub_expr, parsed_conclusion)
+
+                # Evaluate the subexpression if the node is found
+                if sub_expr_node:
+                    row[sub_expr] = self.evaluate_truth_table(sub_expr_node, assignment, intermediary_results)
+
+            # Add the row to the truth table
+            table.append(row)
+        return headers, table
+
+    def print_consequence_truth_table(self, headers, table):
+
+        if not table:
+            print("No data to display.")
+            return
+
+        col_widths = {header: len(header) + 2 for header in headers}
+
+        # Print headers
+        header_row = " | ".join(header.center(col_widths[header]) for header in headers)
+        print(header_row)
+        print("-" * len(header_row))
+
+        # Print rows
+        for row in table:
+            row_text = " | ".join(
+                ("T" if row[col] else "F").center(col_widths[col]) for col in headers
+            )
+            print(row_text)
+
+        print()
+
+
+def main():
+    print("=== Well Formed Logical Formula Console Interface  ===")
+    while True:
+        print("\nPlease select an option:")
+        print("1. Check if a formula is valid or satisfiable")
+        print("2. Check if two formulas are equivalent")
+        print("3. Generate a truth table for a formula")
+        print("4. Check truth value of a formula with specific values")
+        print("5. Check if multiple formulas entail a consequence")
+        print("6. Exit")
+
+        choice = input("Enter your choice (1-6): ")
+        if choice == "1":
+            proposition = input("Enter a proposition: ")
+            converter = ShuntingYardConverter(proposition)
             try:
-                for value in values:
-                    result = parser.evaluate_truth_table(root, value)
-                    print(f"The truth value of the proposition with {value} interpretation is {result}")
+                converted_proposition=converter.convert()
+                parser = LogicalWFFParser(converted_proposition)
+                root=parser.parse(print_tree=True)
+                if root:
+                    print("Final tree structure:")
+                    for pre, _, node in RenderTree(root):
+                        print(f"{pre}{node.name}")  # Using RenderTree to print the subtree
+                    print()
+                    print(parser.check_validity())
             except Exception as e:
-                print(f"Error during evaluation: {e}")
-    except Exception as e:
-        print(e)
-        print("The string is not a well-formed formula (WFF).")
-    print()
+                print(e)
+                print("The string is not a well-formed formula.")
+        elif choice == "2":
+            proposition1 = input("Enter the first formula: ")
+            proposition2 = input("Enter the second formula: ")
+            converter1 = ShuntingYardConverter(proposition1)
+            converter2 = ShuntingYardConverter(proposition2)
+
+            try:
+                converted_proposition1=converter1.convert()
+                converted_proposition2=converter2.convert()
+                parser1 = LogicalWFFParser(converted_proposition1)
+                parser2 = LogicalWFFParser(converted_proposition2)
+                root1 = parser1.parse()
+                root2 = parser2.parse()
+
+                equivalence_result = parser1.check_equivalence(parser2)
+                print(f"\nTruth Table for '{proposition1}':")
+                parser1.generate_truth_table(do_print=True)
+
+                print(f"\nTruth Table for '{proposition2}':")
+                parser2.generate_truth_table(do_print=True)
+                print(
+                    "The two formulas are equivalent." if equivalence_result else "The two formulas are not equivalent.")
+            except Exception as e:
+                print(e)
+        elif choice == "3":
+            proposition = input("Enter a formula to generate a truth table: ")
+            converter = ShuntingYardConverter(proposition)
+            try:
+                converted_proposition = converter.convert()
+                parser = LogicalWFFParser(converted_proposition)
+                root = parser.parse()
+                parser.generate_truth_table(do_print=True)
+            except Exception as e:
+                print(e)
+        elif choice == "4":
+            proposition = input("Enter a proposition: ")
+            try:
+                converter = ShuntingYardConverter(proposition)
+                converted_proposition = converter.convert()
+                parser = LogicalWFFParser(converted_proposition)
+                root = parser.parse()
+                values = {}
+                while True:
+                    variable = input("Enter a variable name (or type 'done' to finish): ")
+                    if variable.lower() == 'done':
+                        break
+                    if not variable.isupper():
+                        print("Variable names must be uppercase. Please enter an uppercase variable name.")
+                        continue
+                    boolean_value = input(f"Enter True or False for {variable}: ")
+                    if boolean_value.lower() == 'true':
+                        values[variable] = True
+                    elif boolean_value.lower() == 'false':
+                        values[variable] = False
+                    else:
+                        print("Invalid input. Please enter 'True' or 'False'.")
+
+                # Evaluate the truth value of the proposition
+                result = parser.evaluate_truth_table(root, values)
+                print(f"The truth value of the proposition '{proposition}' with the given values is: {result}")
+
+            except Exception as e:
+                print(e)
+                print("The string is not a well-formed formula or invalid values were provided.")
+        elif choice == "5":
+            premises = input("Enter premises (separated by commas): ").replace(' ', '').split(',')
+            conclusion = input("Enter the conclusion: ")
+
+            try:
+                converted_premises = []
+                for premise in premises:
+                    converter = ShuntingYardConverter(premise)
+                    converted_premise = converter.convert()
+                    converted_premises.append(converted_premise)
+
+                conclusion_converter = ShuntingYardConverter(conclusion)
+                converted_conclusion = conclusion_converter.convert()
+
+                # Create an instance of the parser for the first premise to use for checking
+                parser = LogicalWFFParser(converted_premises[0])
+
+                is_consequent = parser.check_consequence(converted_premises, converted_conclusion)
+                print(
+                    f"\nThe premises {'entail' if is_consequent else 'do not entail'} the consequence '{conclusion.strip()}'.")
+            except Exception as e:
+                print(e)
+                print("An error occurred during conversion or entailment checking.")
+        else: break
+if __name__ == "__main__":
+    main()
