@@ -446,6 +446,38 @@ class LogicalWFFParser:
 
         print()
 
+def generate_dnf_formula(truth_table):
+    n=len(truth_table[0])-1
+
+    def get_variable_name(index):
+        return chr(ord("A")+index)
+
+    dnf_clauses = []
+    variables = [get_variable_name(i) for i in range(n)]
+    print(" | ".join(variables) + " | Output")
+    print("-" * (4 * n + 9))
+
+    for row in truth_table:
+        *input_values, output = row
+        row_values = [f"{'T' if val == 1 else 'F'}" for val in input_values]
+        print(" | ".join(row_values) + f" |   {'T' if output else 'F'}")
+
+        if output:
+            conjunction = []
+            for j, val in enumerate(input_values):
+                var = get_variable_name(j)
+                if val == 1:
+                    conjunction.append(var)
+                else:
+                    conjunction.append(f"¬{var}")
+
+            dnf_clauses.append("(" + " ∧ ".join(conjunction) + ")")
+    dnf_formula = " ∨ ".join(dnf_clauses) if dnf_clauses else "False"
+
+    print("\nFormula:", dnf_formula)
+    return dnf_formula
+
+
 
 def main():
     print("=== Well Formed Logical Formula Console Interface  ===")
@@ -456,9 +488,9 @@ def main():
         print("3. Generate a truth table for a formula")
         print("4. Check truth value of a formula with specific values")
         print("5. Check if multiple formulas entail a consequence")
-        print("6. Exit")
-
-        choice = input("Enter your choice (1-6): ")
+        print("6. Generate formula from a truth table (matrix format)")
+        print("7. Exit")
+        choice = input("Enter your choice (1-7): ")
         if choice == "1":
             proposition = input("Enter a proposition: ")
             converter = ShuntingYardConverter(proposition)
@@ -562,6 +594,29 @@ def main():
             except Exception as e:
                 print(e)
                 print("An error occurred during conversion or entailment checking.")
-        else: break
+        elif choice == "6":
+            try:
+                # Prompt the user for the number of variables
+                n = int(input("Enter the number of variables in the truth table: "))
+                print("Enter the truth table as rows of values (0 or 1), ending with the output value.")
+                print("Example for 2 variables:\n  0 0 0\n  0 1 1\n  1 0 1\n  1 1 0")
+
+                # Collect each row of the truth table
+                matrix = []
+                for i in range(2 ** n):
+                    row = input(f"Enter row {i + 1} (e.g., '0 0 1'): ").split()
+                    if len(row) != n + 1:
+                        raise ValueError(f"Each row must contain {n + 1} values (including the output).")
+                    # Convert inputs to integers and add to the matrix
+                    matrix.append([int(value) for value in row])
+
+            except ValueError as e:
+                print("Invalid input. Please make sure to follow the input format.")
+            except Exception as e:
+                print("An error occurred:", e)
+        elif choice == "7":
+            break
+        else:
+            print("Invalid choice. Please enter a number from 1 to 7.")
 if __name__ == "__main__":
     main()
