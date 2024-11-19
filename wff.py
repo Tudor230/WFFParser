@@ -1,7 +1,6 @@
 from itertools import product
 import re
-from operator import truth
-
+from formula_converter import *
 from ShuntingYard import ShuntingYardConverter
 from anytree import Node, RenderTree
 
@@ -207,21 +206,21 @@ class LogicalWFFParser:
         intermediary_results[node] = result
         return result
 
-    def get_node_expression(self, node):
-        if node.is_leaf:
-            return node.name
-        elif node.name == "¬":
-            return f"(¬{self.get_node_expression(node.children[0])})"
-        elif node.name in ["∧", "∨"]:
-            # Join expressions of all children with the operator symbol
-            child_expressions = [self.get_node_expression(child) for child in node.children]
-            return f"({f'{node.name}'.join(child_expressions)})"
-        elif node.name in ["⇒", "⇔"]:
-            # For binary operators like ⇒ and ⇔, assume exactly two children
-            left_expr = self.get_node_expression(node.children[0])
-            right_expr = self.get_node_expression(node.children[1])
-            return f"({left_expr}{node.name}{right_expr})"
-        return node.name
+    # def get_node_expression(self, node):
+    #     if node.is_leaf:
+    #         return node.name
+    #     elif node.name == "¬":
+    #         return f"(¬{self.get_node_expression(node.children[0])})"
+    #     elif node.name in ["∧", "∨"]:
+    #         # Join expressions of all children with the operator symbol
+    #         child_expressions = [self.get_node_expression(child) for child in node.children]
+    #         return f"({f'{node.name}'.join(child_expressions)})"
+    #     elif node.name in ["⇒", "⇔"]:
+    #         # For binary operators like ⇒ and ⇔, assume exactly two children
+    #         left_expr = self.get_node_expression(node.children[0])
+    #         right_expr = self.get_node_expression(node.children[1])
+    #         return f"({left_expr}{node.name}{right_expr})"
+    #     return node.name
 
     def get_subexpressions(self, node):
         subexpressions = []
@@ -230,7 +229,7 @@ class LogicalWFFParser:
             for child in n.children:
                 traverse(child)
             if not n.is_leaf:
-                expression = self.get_node_expression(n)
+                expression = get_node_expression(n)
                 subexpressions.append(expression)
 
         traverse(node)
@@ -307,7 +306,7 @@ class LogicalWFFParser:
         while stack:
             current_node = stack.pop()
             # Check if the current node matches the exact expression
-            if self.get_node_expression(current_node) == sub_expr:
+            if get_node_expression(current_node) == sub_expr:
                 return current_node
             # Extend the stack with children nodes
             stack.extend(current_node.children)
@@ -489,8 +488,9 @@ def main():
         print("4. Check truth value of a formula with specific values")
         print("5. Check if multiple formulas entail a consequence")
         print("6. Generate formula from a truth table (matrix format)")
-        print("7. Exit")
-        choice = input("Enter your choice (1-7): ")
+        print("7. Convert formula to DNF and CNF")
+        print("8. Exit")
+        choice = input("Enter your choice (1-8): ")
         if choice == "1":
             proposition = input("Enter a proposition: ")
             converter = ShuntingYardConverter(proposition)
@@ -609,14 +609,37 @@ def main():
                         raise ValueError(f"Each row must contain {n + 1} values (including the output).")
                     # Convert inputs to integers and add to the matrix
                     matrix.append([int(value) for value in row])
-
+                generate_dnf_formula(matrix)
             except ValueError as e:
                 print("Invalid input. Please make sure to follow the input format.")
             except Exception as e:
                 print("An error occurred:", e)
         elif choice == "7":
+            proposition = input("Enter a formula to convert to DNF and CNF: ")
+            converter = ShuntingYardConverter(proposition)
+            try:
+                converted_proposition = converter.convert()
+                parser = LogicalWFFParser(converted_proposition)
+                root = parser.parse()
+
+                nnf=transform_to_nnf(root)
+                nnf_2=deepcopy(nnf)
+                print()
+                print(f"NNF: {get_node_expression(nnf)}")
+                print()
+                dnf=transform_to_normal_form(nnf, "dnf")
+                print(f"DNF: {get_node_expression(dnf)}")
+                print()
+                cnf=transform_to_normal_form(nnf_2, "cnf")
+                print(f"CNF: {get_node_expression(cnf)}")
+
+            except Exception as e:
+                print(e)
+                print("The string is not a well-formed formula or an error occurred during conversion.")
+
+        elif choice == "8":
             break
         else:
-            print("Invalid choice. Please enter a number from 1 to 7.")
+            print("Invalid choice. Please enter a number from 1 to 8.")
 if __name__ == "__main__":
     main()

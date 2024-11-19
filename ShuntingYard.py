@@ -60,10 +60,10 @@ class ShuntingYardConverter:
                 else:  # Binary operation
                     right = stack.pop()
                     left = stack.pop()
-                    if token in {'∨', '∧'} and re.search(re.escape(token), left) is not None:
-                       new_left=left[1:-1]
-                       expression = f"({new_left}{token}{right})"
-                    else : expression = f"({left}{token}{right})"
+                    # if token in {'∨', '∧'} and re.search(re.escape(token), left) is not None:
+                    #    new_left=left[1:-1]
+                    #    expression = f"({new_left}{token}{right})"
+                    expression = f"({left}{token}{right})"
                 stack.append(expression)
             else:
                 stack.append(token)
