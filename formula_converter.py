@@ -16,11 +16,11 @@ def get_node_expression(node):
         return node.name
     elif node.name == "¬":
         return f"(¬{get_node_expression(node.children[0])})"
-    elif node.name in ["∧", "∨"]:
-        # Join expressions of all children with the operator symbol
-        child_expressions = [get_node_expression(child) for child in node.children]
-        return f"({f'{node.name}'.join(child_expressions)})"
-    elif node.name in ["⇒", "⇔"]:
+    # elif node.name in ["∧", "∨"]:
+    #     # Join expressions of all children with the operator symbol
+    #     child_expressions = [get_node_expression(child) for child in node.children]
+    #     return f"({f'{node.name}'.join(child_expressions)})"
+    elif node.name in ["⇒", "⇔", "∧", "∨"]:
         # For binary operators like ⇒ and ⇔, assume exactly two children
         left_expr = get_node_expression(node.children[0])
         right_expr = get_node_expression(node.children[1])
@@ -30,8 +30,6 @@ def get_node_expression(node):
 
 def transform_to_nnf(node, indent=0):
     """Transform a formula into Negation Normal Form (NNF) with indented print statements."""
-    indent_str = "  " * indent  # Create an indentation string based on the current depth
-
     if node.name == "¬":
         child = node.children[0]
 
@@ -45,24 +43,26 @@ def transform_to_nnf(node, indent=0):
 
         # Case: Negation of conjunction (De Morgan's Law)
         elif child.name == "∧":
+            node_copy = deepcopy(node)
             new_node = Node("∨", parent=node.parent)
             for grandchild in child.children:
                 negated_child = Node("¬", parent=new_node)
                 negated_child.children = [transform_to_nnf(grandchild, indent + 1)]
             print("Transformed this formula:")
-            print(f"{get_node_expression(node)}")
+            print(f"{get_node_expression(node_copy)}")
             print("Into its equivalent:")
             print(f"{get_node_expression(new_node)}")
             return transform_to_nnf(new_node, indent)
 
         # Case: Negation of disjunction (De Morgan's Law)
         elif child.name == "∨":
+            node_copy = deepcopy(node)
             new_node = Node("∧", parent=node.parent)
             for grandchild in child.children:
                 negated_child = Node("¬", parent=new_node)
                 negated_child.children = [transform_to_nnf(grandchild, indent + 1)]
             print("Transformed this formula:")
-            print(f"{get_node_expression(node)}")
+            print(f"{get_node_expression(node_copy)}")
             print("Into its equivalent:")
             print(f"{get_node_expression(new_node)}")
             return transform_to_nnf(new_node, indent)
@@ -124,7 +124,7 @@ def transform_to_nnf(node, indent=0):
 
     # Handle conjunction and disjunction nodes
     elif node.name in ["∧", "∨"]:
-        node.children = [transform_to_nnf(child, indent + 1) for child in node.children]
+        node.children = [transform_to_nnf(child) for child in node.children]
 
     return simplify_tree(Node(node.name, parent=node.parent, children=node.children))
 
