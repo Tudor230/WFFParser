@@ -1,5 +1,7 @@
 from itertools import product
 import re
+
+from LCS.WFFParser.resolver import *
 from formula_converter import *
 from ShuntingYard import ShuntingYardConverter
 from anytree import Node, RenderTree
@@ -489,8 +491,9 @@ def main():
         print("5. Check if multiple formulas entail a consequence")
         print("6. Generate formula from a truth table (matrix format)")
         print("7. Convert formula to DNF and CNF")
-        print("8. Exit")
-        choice = input("Enter your choice (1-8): ")
+        print("8. Check if formula is satisfiable using resolution")
+        print("9. Exit")
+        choice = input("Enter your choice (1-9): ")
         if choice == "1":
             proposition = input("Enter a proposition: ")
             converter = ShuntingYardConverter(proposition)
@@ -638,6 +641,41 @@ def main():
                 print("The string is not a well-formed formula or an error occurred during conversion.")
 
         elif choice == "8":
+            option = input("Formula or clauses?:")
+            dp=input("Use DP? (True/False): ")
+            if dp.strip().lower() == 'true':
+                dp=True
+            else: dp=False
+            if option.lower() == "formula":
+                proposition = input("Enter a formula to check satisfiability: ")
+                converter = ShuntingYardConverter(proposition)
+                try:
+                    converted_proposition = converter.convert()
+                    parser = LogicalWFFParser(converted_proposition)
+                    root = parser.parse()
+                    nnf=transform_to_nnf(root)
+                    cnf=transform_to_normal_form(nnf, "cnf")
+                    print(f"CNF: {get_node_expression(cnf)}")
+                    clauses=cnf_tree_to_clauses(cnf)
+                    resolution(clauses, dp)
+                    print(find_satisfiable_interpretation(clauses))
+                except Exception as e:
+                    print(e)
+                    print("The string is not a well-formed formula or an error occurred during conversion.")
+            elif option.lower() == "clauses":
+                input_string = input("Enter clauses in the format {P, ¬Q}, {R}: ")
+                try:
+                    clauses = create_clause_list(input_string)
+                    if clauses == []:
+                        print("No clauses provided resulting in the formula being satisfiable.")
+                    elif {''} in clauses:
+                        print("At least one empty clause resulting in the formula being unsatisfiable.")
+                    else:
+                        resolution(clauses, dp)
+                        print(find_satisfiable_interpretation(clauses))
+                except Exception as e:
+                    print(e)
+        elif choice == 9:
             break
         else:
             print("Invalid choice. Please enter a number from 1 to 8.")

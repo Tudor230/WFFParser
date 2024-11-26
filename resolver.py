@@ -1,3 +1,4 @@
+import re
 def resolve(clause1, clause2):
     """
     Resolves two clauses and returns the resulting clause(s) if they can be resolved.
@@ -29,7 +30,7 @@ def unit_propagation(clauses):
                 new_clause = clause - {complement}
                 if len(new_clause) == 0:
                     print(f"Removed {complement} from clause {set(clause)} resulting in ∅")
-                    return []
+                    return False
                 print(f"Removed {complement} from clause {set(clause)} resulting {set(new_clause)}")
                 if len(new_clause) == 1:
                     unit_clauses.append(new_clause)  # New unit clause found
@@ -82,13 +83,24 @@ def resolution(clauses, dp=True):
 
     while True:
         new = set()
-        if dp:
-            clauses = unit_propagation(clauses)
-            clauses = pure_literal_elimination(clauses)
         if not clauses:
+            print("\nAnswer: Satisfiable")
+            return True
+        elif len(clauses) == 0:
             print("\nAnswer: Unsatisfiable")
             return False
-
+        if dp:
+            clauses = unit_propagation(clauses)
+            if not clauses:
+                print("\nAnswer: Unsatisfiable")
+                return False
+            elif len(clauses) == 0:
+                print("\nAnswer: Satisfiable")
+                return True
+            clauses = pure_literal_elimination(clauses)
+            if len(clauses) == 0:
+                print("\nAnswer: Satisfiable")
+                return True
         clauses = [frozenset(clause) for clause in clauses]
         clauses_set = set(clauses)
         pairs = [(clauses[i], clauses[j]) for i in range(len(clauses)) for j in range(i + 1, len(clauses))]
@@ -102,30 +114,40 @@ def resolution(clauses, dp=True):
                     return False
                 if frozenset(resolvent) not in clauses_set and not is_tautology(resolvent):
                     print(f"({step}) {set(resolvent)} from {set(c1)} and {set(c2)}")
+                    clauses_set.add(frozenset(resolvent))
                     new.add(frozenset(resolvent))
                     step += 1
+                # elif frozenset(resolvent) in clauses_set:
+                #     print(f"{set(resolvent)} from {set(c1)} and {set(c2)} is already included")
                 if new and dp:
                     new_clauses=clauses+list(new)
-                    new_clauses=unit_propagation(new_clauses)
-                    if len(new_clauses) == 0 :
+                    unit_clauses=unit_propagation(new_clauses)
+                    if not unit_clauses:
                         print("\nAnswer: Unsatisfiable")
                         return False
-                    new_clauses=pure_literal_elimination(new_clauses)
-                    if len(new_clauses) == 0 :
-                        print("\nAnswer: Unsatisfiable")
-                        return False
-                    clauses = list(map(frozenset, new_clauses))
-                    diff = True
-                    break
+                    elif len(unit_clauses) == 0 :
+                        print("\nAnswer: Satisfiable")
+                        return True
+                    pure_clauses=pure_literal_elimination(unit_clauses)
+                    if len(pure_clauses) == 0:
+                        print("\nAnswer: Satisfiable")
+                        return True
+                    if new_clauses != pure_clauses:
+                        clauses = list(map(frozenset, pure_clauses)) # Updates clauses with the processed clauses
+                        diff = True
+                        break
             if diff:
                 break
 
 
 
         if not new:
-            print("\nNo new resolvant ")
+            print("\nNo new resolvant to be added ")
             print("Answer: Satisfiable")
             return True
+
+        if not diff:
+            clauses.extend(new)
 
 def is_tautology(clause):
     """
@@ -138,41 +160,107 @@ def is_tautology(clause):
     return False
 
 
-# Input clauses
-# clauses = [
-#     {"F1", "¬F2"},  # (F1 ∨ ¬F2)
-#     {"F1", "F3"},  # (F1 ∨ F3)
-#     {"¬F2", "F3"},  # (¬F2 ∨ F3)
-#     {"¬F1", "F2"},  # (¬F1 ∨ F2)
-#     {"F2", "¬F3"},  # (F2 ∨ ¬F3)
-#     {"¬F1", "¬F3"},  # (¬F1 ∨ ¬F3)
-# ]
+def cnf_tree_to_clauses(node):
+    """
+        Converts a CNF tree into a list of clauses.
+        Each clause is represented as a set of literals.
+    """
 
-# clauses = [
-#     {"F1", "F2"},     # (F1 ∨ F2)
-#     {"¬F1", "F3"},    # (¬F1 ∨ F3)
-#     {"¬F2", "¬F3"},   # (¬F2 ∨ ¬F3)
-#     {"F1", "¬F3"},    # (F1 ∨ ¬F3)
-# ]
+    if not node.children:
+        return [{node.name}]
+    clauses = []
+    for child in node.children:
+        if child.name == '∨':  # If the child represents a disjunction
+            clause = set(grab_literals(child))
+            clauses.append(clause)
+        else:
+            clauses.append(grab_literals(child))
+    return clauses
 
-# clauses = [
-#     {"¬A", "¬W", "P"},   # (¬A ∨ ¬W ∨ P)
-#     {"A", "I"},          # (A ∨ I)
-#     {"W", "M"},          # (W ∨ M)
-#     {"¬P"},              # (¬P)
-#     {"¬E", "¬I"},        # (¬E ∨ ¬I)
-#     {"¬E", "¬M"},        # (¬E ∨ ¬M)
-#     {"¬E"},               # (E)
-# ]
-
-clauses = [
-    {"P", "Q", "¬R"},    # (P ∨ Q ∨ ¬R)
-    {"¬P", "R"},         # (¬P ∨ R)
-    {"P", "¬Q", "S"},    # (P ∨ ¬Q ∨ S)
-    {"¬P", "¬Q", "¬R"},  # (¬P ∨ ¬Q ∨ ¬R)
-    {"P", "¬S"},         # (P ∨ ¬S)
-]
+def grab_literals(node):
+    """
+    Recursively collects literals from a disjunction subtree.
+    """
+    if not node.children:
+        return {node.name}
+    literals = []
+    if node.name == "¬":
+        return {f"¬{node.children[0].name}"}
+    for child in node.children:
+        literals.extend(grab_literals(child))
+    return literals
 
 
-# Check satisfiability
-resolution(clauses, dp=True)
+def create_clause_list(string):
+    return [] if string == "{}" else [{literal for literal in clause.strip("{}").split(",")} for clause in re.findall(r"{[^{}]*}", string.replace(" ", ""))]
+
+
+def is_satisfied(assignment, clauses):
+    """
+    Check if the formula (in terms of clauses) is satisfied given an assignment of truth values.
+    """
+    for clause in clauses:
+        satisfied_clause = False
+        for literal in clause:
+            # Determine the variable and its negation
+            var = literal.lstrip('¬')  # Remove '¬' to get the variable
+            negated = (literal != var)  # Check if the literal is negated
+
+            # Check if the literal satisfies the clause
+            if var in assignment:
+                if negated and not assignment[var]:  # Variable must be False if negated
+                    satisfied_clause = True
+                    break
+                elif not negated and assignment[var]:  # Variable must be True if not negated
+                    satisfied_clause = True
+                    break
+        # If no literal in the clause satisfies, the whole clause is false
+        if not satisfied_clause:
+            return False
+    return True
+
+
+def backtrack(variables, clauses, assignment):
+    """
+    Try to find a satisfying assignment using backtracking.
+    """
+    # If we've assigned values to all variables, check if the formula is satisfied
+    if len(assignment) == len(variables):
+        if is_satisfied(assignment, clauses):
+            return assignment
+        else:
+            return None
+
+    # Try assigning True to the next unassigned variable
+    var = variables[len(assignment)]
+    assignment[var] = True
+    result = backtrack(variables, clauses, assignment)
+    if result is not None:
+        return result
+
+    # Backtrack: try assigning False to the next variable
+    assignment[var] = False
+    result = backtrack(variables, clauses, assignment)
+    if result is not None:
+        return result
+
+    # If no assignment worked, return None (unsatisfiable)
+    del assignment[var]  # Remove the assignment to backtrack
+    return None
+
+
+def find_satisfiable_interpretation(clauses):
+    """
+    Find a satisfying interpretation for the formula using backtracking.
+    """
+    # Extract the set of variables from the clauses (positive and negative literals)
+    variables = set()
+    for clause in clauses:
+        for literal in clause:
+            # Add the variable without the '¬' symbol
+            variables.add(literal.lstrip('¬'))
+
+    # Start the backtracking search with an empty assignment
+    assignment = {}
+    return backtrack(list(variables), clauses, assignment)
+
