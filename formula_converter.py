@@ -16,11 +16,11 @@ def get_node_expression(node):
         return node.name
     elif node.name == "¬":
         return f"(¬{get_node_expression(node.children[0])})"
-    # elif node.name in ["∧", "∨"]:
-    #     # Join expressions of all children with the operator symbol
-    #     child_expressions = [get_node_expression(child) for child in node.children]
-    #     return f"({f'{node.name}'.join(child_expressions)})"
-    elif node.name in ["⇒", "⇔", "∧", "∨"]:
+    elif node.name in ["∧", "∨"]:
+        # Join expressions of all children with the operator symbol
+        child_expressions = [get_node_expression(child) for child in node.children]
+        return f"({f'{node.name}'.join(child_expressions)})"
+    elif node.name in ["⇒", "⇔"]:
         # For binary operators like ⇒ and ⇔, assume exactly two children
         left_expr = get_node_expression(node.children[0])
         right_expr = get_node_expression(node.children[1])
