@@ -11,7 +11,7 @@ def resolve(clause1, clause2):
             return [new_clause]
     return []
 
-def unit_propagation(clauses):
+def unit_propagation(clauses,indentation=""):
     """
     Apply unit propagation to simplify the clauses.
     """
@@ -19,38 +19,39 @@ def unit_propagation(clauses):
     while unit_clauses:
         unit = unit_clauses.pop()
         literal = next(iter(unit))  # Get the single literal
-        print(f"Found unit literal {literal}")
+        print(f"{indentation}Found unit literal {literal}")
         complement = "¬" + literal if not literal.startswith("¬") else literal[1:]
         new_clauses = []
         for clause in clauses:
             if literal in clause:
-                print(f"Removed clause {set(clause)}")
+                print(f"{indentation}Removed clause {set(clause)}")
                 continue  # Remove clause if literal is found
             if complement in clause:
                 new_clause = clause - {complement}
                 if len(new_clause) == 0:
-                    print(f"Removed {complement} from clause {set(clause)} resulting in ∅")
+                    print(f"{indentation}Removed {complement} from clause {set(clause)} resulting in ∅")
                     return False
-                print(f"Removed {complement} from clause {set(clause)} resulting {set(new_clause)}")
+                print(f"{indentation}Removed {complement} from clause {set(clause)} resulting {set(new_clause)}")
                 if len(new_clause) == 1:
                     unit_clauses.append(new_clause)  # New unit clause found
                 new_clauses.append(new_clause)
             else:
                 new_clauses.append(clause)
         if clauses != list(map(frozenset, new_clauses)):
-            print("Clauses after unit propagation:")
+            print(f"{indentation}Clauses after unit propagation:")
             for i in new_clauses:
-                print(set(i))
+                print(f"{indentation}{set(i)}")
 
         clauses = new_clauses
     return clauses
 
-def pure_literal_elimination(clauses):
+def pure_literal_elimination(clauses,indentation=""):
     """
     Apply pure literal elimination.
     """
     literals = set(literal for clause in clauses for literal in clause)
     pure_literals = set()
+    removed = False
     for literal in literals:
         if ('¬' + literal) not in literals and not literal.startswith('¬'):
             pure_literals.add(literal)
@@ -60,13 +61,16 @@ def pure_literal_elimination(clauses):
     for clause in clauses:
         new_clause = {lit for lit in clause if lit not in pure_literals}
         if new_clause != clause:  # Keep clause if not empty
-            print(f"Removed clause {set(clause)} because it contains a pure literal")
+            print(f"{indentation}Removed clause {set(clause)} because it contains a pure literal")
+            removed = True
         else:
             new_clauses.append(new_clause)
     if clauses != list(map(frozenset, new_clauses)):
-        print("Clauses after pure literal elimination:")
+        print(f"{indentation}Clauses after pure literal elimination:")
         for i in new_clauses:
-            print(set(i))
+            print(f"{indentation}{set(i)}")
+    if removed:
+        new_clauses = pure_literal_elimination(new_clauses)
     return new_clauses
 
 def resolution(clauses, dp=True):
@@ -264,3 +268,57 @@ def find_satisfiable_interpretation(clauses):
     assignment = {}
     return backtrack(list(variables), clauses, assignment)
 
+def dpll(clauses, branch=None, indent=0):
+    """
+    Implements the DPLL algorithm for satisfiability.
+    Recursively applies unit propagation, pure literal elimination, and branching.
+    """
+    indentation = "  " * indent
+    clauses = unit_propagation(clauses,indentation)
+    if clauses is False:
+        if branch:
+            print(f"{indentation}Answer: Unsatisfiable (after unit propagation) for {branch} branch")
+        else:
+            print(f"{indentation}Answer: Unsatisfiable (after unit propagation)")
+        return False
+    elif not clauses:
+        if branch:
+            print(f"Answer: Satisfiable (after unit propagation) for {branch} branch")
+        else:
+            print(f"{indentation}Answer: Satisfiable (after unit propagation)")
+        return True
+
+    clauses = pure_literal_elimination(clauses)
+    if not clauses:
+        if branch:
+            print(f"{indentation}Answer: Satisfiable (after pure literal elimination) for {branch} branch")
+        else:
+            print(f"{indentation}Answer: Satisfiable (after pure literal elimination)")
+        return True
+
+    literal = next(iter(clauses[0]))
+
+    # Create two branches: one where the literal is true and one where the literal is false
+    clauses_true = [frozenset(clause) for clause in clauses]
+    clauses_false = [frozenset(clause) for clause in clauses]
+
+    # Add the literal to the true branch and the negation of the literal to the false branch
+    negation= "¬" + literal if not literal.startswith("¬") else literal[1:]
+    clauses_true.append(frozenset([literal]))
+    clauses_false.append(frozenset([negation]))
+
+    # Recursively solve the true branch
+    print(f"\n{indentation}Branching on {literal} = True")
+    if dpll(clauses_true,literal, indent + 1):
+        print(f"{indentation}Answer: Satisfiable with {literal} = True")
+        return True
+
+    # Recursively solve the false branch
+    print(f"\n{indentation}Branching on {literal} = False")
+    if dpll(clauses_false, negation, indent + 1):
+        print(f"{indentation}Answer: Satisfiable with {literal} = False")
+        return True
+
+    # If neither branch is satisfiable, the formula is unsatisfiable
+    print(f"{indentation}Answer: Unsatisfiable (both branches failed for {literal})")
+    return False

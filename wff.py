@@ -642,10 +642,9 @@ def main():
 
         elif choice == "8":
             option = input("Formula or clauses?:")
-            dp=input("Use DP? (True/False): ")
-            if dp.strip().lower() == 'true':
-                dp=True
-            else: dp=False
+            use_dpll = input("Use DPLL? (True/False): ").strip().lower() == 'true'
+            if not use_dpll:
+                dp=input("Use DP? (True/False): ").strip().lower() == 'true'
             if option.lower() == "formula":
                 proposition = input("Enter a formula to check satisfiability: ")
                 converter = ShuntingYardConverter(proposition)
@@ -657,7 +656,10 @@ def main():
                     cnf=transform_to_normal_form(nnf, "cnf")
                     print(f"CNF: {get_node_expression(cnf)}")
                     clauses=cnf_tree_to_clauses(cnf)
-                    resolution(clauses, dp)
+                    if use_dpll:
+                        dpll(clauses)
+                    else:
+                        resolution(clauses, dp)
                     print(find_satisfiable_interpretation(clauses))
                 except Exception as e:
                     print(e)
@@ -671,7 +673,10 @@ def main():
                     elif {''} in clauses:
                         print("At least one empty clause resulting in the formula being unsatisfiable.")
                     else:
-                        resolution(clauses, dp)
+                        if use_dpll:
+                            dpll(clauses)
+                        else:
+                            resolution(clauses, dp)
                         print(find_satisfiable_interpretation(clauses))
                 except Exception as e:
                     print(e)
