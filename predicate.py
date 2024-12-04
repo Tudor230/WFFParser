@@ -231,6 +231,8 @@ class PredicateLogicParser:
                     else:
                         raise Exception(
                             f"Error: Missing closing parenthesis for {connective if connective != ')' else 'binary'} operation")
+                else:
+                    raise Exception(f"Expected connective after left node of a binary operation, got '{self.current_char()}' instead")
             return None
 
     def parse_expression(self, print_tree=False):
@@ -283,7 +285,7 @@ class PredicateLogicParser:
 
 
 # Example Usage
-expression = "P(x, y) ⇔ ∃xR(x, y, z)"
+expression = "∀x((P(x, y) ∨ (R(f(x, y), g(f(y, z)), a))) ⇒ (P(a, b) ⇔ ∃yP(x, y)))"
 functions = "f/2, g/1, h/3"
 predicates = "P/2, Q/2, R/3"
 constants = "a, b, c"
