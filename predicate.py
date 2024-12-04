@@ -1,7 +1,5 @@
 import re
 from anytree import Node, RenderTree
-from pwnlib.util.proc import children
-from sympy import print_tree
 
 
 class PredicateLogicParser:
