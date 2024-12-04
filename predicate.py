@@ -152,7 +152,8 @@ class PredicateLogicParser:
                             for pre, _, node in RenderTree(quantifier_node):
                                 print(f"{pre}{node.name}")
                         return quantifier_node
-            return None
+            else:
+                raise Exception(f"Error: Expected a variable after quantifier got ({self.current_char()}) instead" )
         return None
 
     def parse_unary(self, print_tree=False):
@@ -205,7 +206,7 @@ class PredicateLogicParser:
             self.advance()
             if left_node := self.parse_expression(print_tree):
                 if left_node.name in self.function_symbols or left_node.name in self.constant_symbols or self.is_variable(left_node.name):
-                    raise Exception("Left node cannot be a function, constant, or variable")
+                    raise Exception("Left node of a logical operation cannot be a function, constant, or variable")
                 connective = self.current_char()
                 if connective in ['⇒', '⇔', '∧', '∨']:
                     print(f"Detected binary connective: {connective}")
@@ -273,6 +274,14 @@ class PredicateLogicParser:
             else:
                 raise Exception("Error: Invalid structure.")
 
+    def get_type(self, node):
+        if node.name in self.function_symbols or node.name in self.constant_symbols or self.is_variable(node.name):
+            return "Expression type is term"
+        if node.name in self.predicate_symbols or node.name in ["∧", "∨", "⇒", "⇔"]:
+            return "Expression type is formula"
+        if node.name in self.quantifiers:
+            return "Expression type is quantified formula"
+        return "Expression type is unknown"
 
 
 # Example Usage
@@ -285,6 +294,7 @@ parser.get_function_symbols(functions)
 parser.get_predicate_symbols(predicates)
 parser.get_constant_symbols(constants)
 try:
-    parser.parse(print_tree=True)
+    root = parser.parse(print_tree=True)
+    print(parser.get_type(root))
 except Exception as e:
     print(e)
