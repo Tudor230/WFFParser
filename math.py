@@ -165,15 +165,19 @@ def p_invisible_multiplication(p):
     """expression : NUMBER NUMBER
                     | NUMBER VARIABLE
                     | NUMBER CONSTANT
-                    | NUMBER LPAREN expression RPAREN
+                    | NUMBER expression
                     | VARIABLE NUMBER
                     | VARIABLE VARIABLE
                     | VARIABLE CONSTANT
-                    | VARIABLE LPAREN expression RPAREN
+                    | VARIABLE expression
                     | CONSTANT NUMBER
                     | CONSTANT VARIABLE
                     | CONSTANT CONSTANT
-                    | CONSTANT LPAREN expression RPAREN"""
+                    | CONSTANT expression
+                    | expression NUMBER
+                    | expression VARIABLE
+                    | expression CONSTANT
+                    | expression expression"""
     p[0] = ('*', p[1], p[2])
 
 def p_arguments_single(p):
