@@ -274,15 +274,24 @@ def substitute_user_defined_predicates(shorthand):
 
     # Create a regex pattern to match variables and any user-defined predicate
     predicate_pattern = "|".join(re.escape(p) for p in predicates)
-    pattern = rf'([\w\s,]+)\s*({predicate_pattern})\s*([\w\.]+)'
 
+    # Pattern for matching:
+    # - Variables followed by predicate (old case)
+    # - Threshold, predicate followed by variables (new case)
+    pattern = rf'([\w\.]+)\s*({predicate_pattern})\s*([\w\s,]+)|([\w\s,]+)\s*({predicate_pattern})\s*([\w\.]+)'
     # Replacement function for matches
     def replacer(match):
-        variables = match.group(1).split(",")  # Split variables by comma
-        predicate = match.group(2)
-        threshold = match.group(3)
-        # Generate the explicit conjunction
-        return " ∧ ".join(f"{var.strip()} {predicate} {threshold}" for var in variables)
+        if match.group(1):  # Case 1: Variables, predicate, threshold (variables before predicate)
+            variables = match.group(3).split(",")  # Split variables by comma
+            predicate = match.group(2)
+            threshold = match.group(1)
+            return " ∧ ".join(f"{threshold} {predicate} {var.strip()}" for var in variables)
+        else:  # Case 2: Threshold, predicate, variables (predicate before variables)
+            threshold = match.group(6)
+            predicate = match.group(5)
+            variables = match.group(4).split(",")  # Split variables by comma
+            return " ∧ ".join(f"{var.strip()} {predicate} {threshold}" for var in variables)
+
 
     # Perform the substitution
     return re.sub(pattern, replacer, shorthand)
@@ -342,7 +351,7 @@ def extract_membership(tup):
 # Test the parser
 if __name__ == "__main__":
     # data = "(z − y < ε1 ⇒ y − x < ε2 ⇒ z − x ≥ ε1 + ε2)"
-    data = "∃x∈ℕ(x^2 = 7)"
+    data = "1<x,y ∧ x,y<2"
     data = substitute_user_defined_predicates(data)
     data = substitute_chained_predicates(data)
     data = transform_quantifiers(data)
