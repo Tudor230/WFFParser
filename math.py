@@ -2,6 +2,7 @@ from collections import defaultdict
 import ply.yacc as yacc
 from lexer import tokens, user_defined_symbols, symbol_aliases
 import re
+from anytree import Node, RenderTree
 static_precedence = [
     ('right', 'IMPLIES', 'IFF'),
     ('left', 'OR'),
@@ -44,12 +45,20 @@ def p_negation(p):
     print(f"Detected negation: {p[1]} {p[2]}")
     if is_predicate(p[2]):
         raise Exception(f"Error: Function - cannot be applied to predicate: {p[2]}.")
-    p[0] = ("-", p[2])
+    p[0] = (p[1], p[2])
 
 def p_module_expression(p):
     """expression : LMODULE expression RMODULE"""
     print(f"Detected module expression: {p[1]} {p[2]} {p[3]}")
     p[0] = ('|', p[2])
+
+def p_invisible_multiplication(p):
+    """expression : NUMBER expression
+                    | VARIABLE expression
+                    | CONSTANT expression
+                    | expression expression"""
+    print(f"Detected invisible multiplication between: {p[1]} {p[2]}")
+    p[0] = ('*', p[1], p[2])
 
 def p_expression_base(p):
     """expression : VARIABLE
@@ -231,15 +240,6 @@ for function_name, details in user_defined_symbols["functions"].items():
 for predicate_name, details in user_defined_symbols["predicates"].items():
     create_predicate_rules(predicate_name, details["arity"], details["type"])
 
-
-def p_invisible_multiplication(p):
-    """expression : NUMBER expression
-                    | VARIABLE expression
-                    | CONSTANT expression
-                    | expression expression"""
-    print(f"Detected invisible multiplication between: {p[1]} {p[2]}")
-    p[0] = ('*', p[1], p[2])
-
 def p_arguments_single(p):
     """arguments : expression"""
     print(f"Detected single argument: {p[1]}")
@@ -318,6 +318,14 @@ def substitute_chained_predicates(shorthand):
 def transform_quantifiers(expression):
     return re.sub(r'([∀∃])([a-z]+(?:,[a-z]+)*)', lambda match: ''.join([match.group(1) + var for var in match.group(2).split(',')]), expression)
 
+
+def add_invisible_multiplication(expression):
+    # Temporary solution might need to be improved or removed
+    pattern = r'(\d)(?=[a-zεδ][0-9]*)|([a-zεδ][0-9]*)(?=\d)'
+    modified_expression = re.sub(pattern, r'\1*', expression)
+
+    return modified_expression
+
 def extract_membership(tup):
     if isinstance(tup, tuple) and tup[0] != "∧":
         return [tup]
@@ -332,10 +340,31 @@ def extract_membership(tup):
 # Test the parser
 if __name__ == "__main__":
     # data = "(z − y < ε1 ⇒ y − x < ε2 ⇒ z − x ≥ ε1 + ε2)"
-    data = "(x, y, z ≥ k ⇒ x + y + z ≥ l)"
+    data = "¬P(x, y) ⇔ (∀x∃y∀z((P(y, z)∨Q(x, y, z)) ⇒ (R(x, z, y)∨¬P(x, z))))"
     data = substitute_user_defined_predicates(data)
     data = substitute_chained_predicates(data)
     data = transform_quantifiers(data)
+    data = add_invisible_multiplication(data)
     print(data.replace(" ", ""))
-    result = parser.parse(data)
-    print(result)
+    try:
+        result = parser.parse(data)
+        print(f"Final tree tuple: {result}")
+        def build_anytree(data, parent=None):
+            if isinstance(data, tuple):
+                node = Node(data[0], parent=parent)
+                for child in data[1:]:
+                    if isinstance(data[1], list):  # If the second element is a list of children
+                        for child in data[1]:
+                            build_anytree(child, parent=node)
+                    else:build_anytree(child, parent=node)
+                return node
+            else:
+                return Node(data, parent=parent)
+
+        anytree_root = build_anytree(result)
+        for pre, _, node in RenderTree(anytree_root):
+            print(f"{pre}{node.name}")
+    except Exception as e:
+        print(e)
+        print("Parsing failed.")
+
