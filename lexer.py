@@ -7,7 +7,7 @@ static_tokens = (
     'FORALL', 'EXISTS',
     'LPAREN', 'RPAREN',
     'VARIABLE', 'CONSTANT', 'COMMA',
-    'NUMBER'
+    'NUMBER', 'SET', 'LMODULE', 'RMODULE'
 )
 
 # Token definitions
@@ -21,6 +21,7 @@ t_EXISTS = r'∃'
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
 t_COMMA = r','
+t_NEG = r'-'
 
 user_defined_symbols = {
     "constants": {"a", "b", "c", 4},  # Constants as a set
@@ -31,6 +32,8 @@ user_defined_symbols = {
         "+": {"arity": 2, "type": "infix", "precedence": 2},
         "*": {"arity": 2, "type": "infix", "precedence": 3},
         "/": {"arity": 2, "type": "infix", "precedence": 3},
+        "√": {"arity": 1, "type": "prefix", "precedence": 4, "parentheses": False},
+        "^": {"arity": 2, "type": "infix", "precedence": 4},
     },
     "predicates": {
         "P": {"arity": 2, "type": "prefix", "precedence": 1},
@@ -43,6 +46,7 @@ user_defined_symbols = {
         "<": {"arity": 2, "type": "infix", "precedence": 1},
         "≠": {"arity": 2, "type": "infix", "precedence": 1},
         "=": {"arity": 2, "type": "infix", "precedence": 1},
+        "∈": {"arity": 2, "type": "infix", "precedence": 3},
     }
 }
 
@@ -57,7 +61,27 @@ symbol_aliases = {
     '<': 'LT',
     '≠': 'NEQ',
     '=': 'EQ',
+    "∈": "IN",
+    "√": "SQRT",
+    "^": "POW",
+    "-": "NEG",
 }
+
+states = (
+    ('modulecontext', 'inclusive'),
+)
+
+# Define the LMODULE token
+def t_LMODULE(t):
+    r'\|'
+    t.lexer.begin('modulecontext')  # Enter module context after LMODULE
+    return t
+
+# Define the RMODULE token (only allowed in modulecontext)
+def t_modulecontext_RMODULE(t):
+    r'\|'
+    t.lexer.begin('INITIAL')  # Exit module context after RMODULE
+    return t
 
 sorted_functions = sorted(user_defined_symbols["functions"].items(), key=lambda item: len(item[0]), reverse=True)
 
@@ -74,7 +98,12 @@ tokens += [func for func in user_defined_symbols["functions"] if func not in sym
 tokens += [pred for pred in user_defined_symbols["predicates"] if pred not in symbol_aliases]
 tokens= tuple(tokens)
 
-
+def t_NUMBER(t):
+    r'-?\d+(\.\d+)?'  # Matches integers and floating-point numbers
+    t.value = int(t.value) if '.' not in t.value else float(t.value)
+    if t.value in user_defined_symbols['constants']:
+        t.type = 'CONSTANT'  # Treat numbers as constants
+    return t
 
 for symbol, alias in symbol_aliases.items():
     globals()[f"t_{alias}"] = re.escape(symbol)
@@ -109,7 +138,7 @@ def generate_variable_token_function():
 
     # Create a regex pattern for valid variable names (lowercase letter followed by digits)
     # Exclude used names
-    pattern = r'[a-zε][0-9]*'
+    pattern = r'[a-zεδ][0-9]*'
     excluded_pattern = r'\b(?:' + '|'.join(re.escape(str(name)) for name in used_names) + r')\b'
     final_pattern = f"(?!{excluded_pattern}){pattern}" if used_names else pattern
     # Define the token function
@@ -125,13 +154,10 @@ generate_constant_token_function()
 generate_variable_token_function()
 
 
-def t_NUMBER(t):
-    r'\d+(\.\d+)?'  # Matches integers and floating-point numbers
-    t.value = int(t.value) if '.' not in t.value else float(t.value)
-    if t.value in user_defined_symbols['constants']:
-        t.type = 'CONSTANT'  # Treat numbers as constants
-    return t
 
+def t_SET(t):
+    r'ℝ|ℕ|ℤ|ℚ|ℂ'
+    return t
 
 # Ignored characters (e.g., whitespace)
 t_ignore = ' \t'
