@@ -4,7 +4,7 @@ import re
 # Define tokens
 static_tokens = (
     'NOT', 'AND', 'OR', 'IMPLIES', 'IFF',
-    'FORALL', 'EXISTS',
+    'FORALL', 'EXISTS', 'NEXISTS', 'UEXISTS',
     'LPAREN', 'RPAREN',
     'VARIABLE', 'CONSTANT', 'COMMA',
     'NUMBER', 'SET', 'LMODULE', 'RMODULE'
@@ -18,6 +18,8 @@ t_IMPLIES = r'⇒'
 t_IFF = r'⇔'
 t_FORALL = r'∀'
 t_EXISTS = r'∃'
+t_NEXISTS = r'∄'
+t_UEXISTS = r'∃!'
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
 t_COMMA = r','

@@ -91,8 +91,12 @@ def p_expression_unary(p):
 def p_expression_quantifier(p):
     """expression : FORALL VARIABLE expression
                   | EXISTS VARIABLE expression
+                  | NEXISTS VARIABLE expression
+                  | UEXISTS VARIABLE expression
                   | FORALL expression expression
-                  | EXISTS expression expression"""
+                  | EXISTS expression expression
+                  | NEXISTS expression expression
+                  | UEXISTS expression expression"""
     # Might need to add a check for parentheses
     print(f"Detected quantifier expression: {p[1]} {p[2]} {p[3]}")
     if is_predicate(p[2]):
@@ -274,13 +278,16 @@ def substitute_user_defined_predicates(shorthand):
 
     # Create a regex pattern to match variables and any user-defined predicate
     predicate_pattern = "|".join(re.escape(p) for p in predicates)
-
+    variable_pattern = r'[a-zεδ][0-9]*'
+    # threshold_pattern = r'[-]?\|?[\w\+\-\*/\^\(\)\., ]+\|?' # Temporary solution
+    threshold_pattern = r'[-]?\|?[\w\+\-\*/\^\(\)\., ]\|?'
     # Pattern for matching:
     # - Variables followed by predicate (old case)
     # - Threshold, predicate followed by variables (new case)
-    pattern = rf'([\w\.]+)\s*({predicate_pattern})\s*([\w\s,]+)|([\w\s,]+)\s*({predicate_pattern})\s*([\w\.]+)'
+    pattern = rf'({threshold_pattern})\s*({predicate_pattern})\s*({variable_pattern}(?:\s*,\s*{variable_pattern})*)|({variable_pattern}(?:\s*,\s*{variable_pattern})*)\s*({predicate_pattern})\s*({threshold_pattern})'
     # Replacement function for matches
     def replacer(match):
+        print(match.groups())
         if match.group(1):  # Case 1: Variables, predicate, threshold (variables before predicate)
             variables = match.group(3).split(",")  # Split variables by comma
             predicate = match.group(2)
@@ -347,11 +354,20 @@ def extract_membership(tup):
             result += extract_membership(elem)
     return result
 
+def get_type(node):
+    if node.name in ["∧", "∨", "⇒", "⇔"] or node.name in user_defined_symbols["predicates"]:
+        return "Expression type is formula"
+    if node.name in ["∀", "∃", "∄", "∃!"]:
+        return "Expression type is quantified formula"
+    else:
+        return "Expression type is term"
+
+
 
 # Test the parser
 if __name__ == "__main__":
     # data = "(z − y < ε1 ⇒ y − x < ε2 ⇒ z − x ≥ ε1 + ε2)"
-    data = "1<x,y ∧ x,y<2"
+    data = "∃!x∈ℕ(x^2 = 7)"
     data = substitute_user_defined_predicates(data)
     data = substitute_chained_predicates(data)
     data = transform_quantifiers(data)
@@ -375,6 +391,7 @@ if __name__ == "__main__":
         anytree_root = build_anytree(result)
         for pre, _, node in RenderTree(anytree_root):
             print(f"{pre}{node.name}")
+        print(get_type(anytree_root))
     except Exception as e:
         print(e)
         print("Parsing failed.")
