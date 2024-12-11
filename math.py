@@ -25,7 +25,7 @@ for name, symbol_type, precedence_level in combined_symbols_sorted:
 precedence = []
 for (precedence_level, assoc), names in sorted(grouped_precedence.items()):
     precedence.append((assoc, *names))
-precedence = static_precedence + precedence + [('right', 'NEG', 'LMODULE'), ('left', 'RMODULE')]
+precedence = static_precedence + precedence + [('right', 'NEG', 'LMODULE'), ('left', 'RMODULE'), ('left', "HIGHPREC")]
 precedence = tuple(precedence)
 
 def is_predicate(expr):
@@ -53,13 +53,13 @@ def p_module_expression(p):
     p[0] = ('|', p[2])
 
 def p_invisible_multiplication(p):
-    # """expression : NUMBER expression
-    #                 | VARIABLE expression
-    #                 | CONSTANT expression
-    #                 | expression expression"""
-    """expression : expression expression"""
+    """expression : NUMBER expression %prec HIGHPREC
+                    | VARIABLE expression %prec HIGHPREC
+                    | CONSTANT expression %prec HIGHPREC
+                    | expression expression %prec HIGHPREC"""
+    # """expression : expression expression"""
     print(f"Detected invisible multiplication between: {p[1]} {p[2]}")
-    p[0] = ('*', p[1], p[2])
+    p[0] = ('□□', p[1], p[2])
 
 def p_expression_base(p):
     """expression : VARIABLE
@@ -367,11 +367,11 @@ def get_type(node):
 # Test the parser
 if __name__ == "__main__":
     # data = "(z − y < ε1 ⇒ y − x < ε2 ⇒ z − x ≥ ε1 + ε2)"
-    data = "∃!x∈ℕ(x^2 = 7)"
+    data = "y√z"
     data = substitute_user_defined_predicates(data)
     data = substitute_chained_predicates(data)
     data = transform_quantifiers(data)
-    data = add_invisible_multiplication(data)
+    # data = add_invisible_multiplication(data)
     print(data.replace(" ", ""))
     try:
         result = parser.parse(data)
