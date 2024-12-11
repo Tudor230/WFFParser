@@ -35,7 +35,7 @@ user_defined_symbols = {
         "*": {"arity": 2, "type": "infix", "precedence": 3},
         "/": {"arity": 2, "type": "infix", "precedence": 3},
         "√": {"arity": 1, "type": "prefix", "precedence": 4, "parentheses": False},
-        "^": {"arity": 2, "type": "infix", "precedence": 4},
+        "^": {"arity": 2, "type": "infix", "precedence": 4, "associativity": "right"},
     },
     "predicates": {
         "P": {"arity": 2, "type": "prefix", "precedence": 1},

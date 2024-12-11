@@ -11,17 +11,23 @@ static_precedence = [
 ]
 combined_symbols = []
 for function_name, details in user_defined_symbols["functions"].items():
-    combined_symbols.append((function_name, details["type"], details["precedence"]))
+    combined_symbols.append((function_name, details["type"], details["precedence"], details["associativity"] if "associativity" in details else ""))
 
 for predicate_name, details in user_defined_symbols["predicates"].items():
-    combined_symbols.append((predicate_name, details["type"], details["precedence"]))
+    combined_symbols.append((predicate_name, details["type"], details["precedence"], details["associativity"] if "associativity" in details else ""))
 combined_symbols_sorted = sorted(combined_symbols, key=lambda item: (item[2], item[1]))
 grouped_precedence = defaultdict(list)
-for name, symbol_type, precedence_level in combined_symbols_sorted:
+for name, symbol_type, precedence_level, associativity in combined_symbols_sorted:
     if symbol_type == "infix":
-        grouped_precedence[(precedence_level, "left")].append(symbol_aliases[name] if name in symbol_aliases else name)
+        if associativity == "":
+            grouped_precedence[(precedence_level, "left")].append(symbol_aliases[name] if name in symbol_aliases else name)
+        else:
+            grouped_precedence[(precedence_level, associativity)].append(symbol_aliases[name] if name in symbol_aliases else name)
     elif symbol_type == "prefix":
-        grouped_precedence[(precedence_level, "right")].append(symbol_aliases[name] if name in symbol_aliases else name)
+        if associativity == "":
+            grouped_precedence[(precedence_level, "right")].append(symbol_aliases[name] if name in symbol_aliases else name)
+        else:
+            grouped_precedence[(precedence_level, associativity)].append(symbol_aliases[name] if name in symbol_aliases else name)
 precedence = []
 for (precedence_level, assoc), names in sorted(grouped_precedence.items()):
     precedence.append((assoc, *names))
@@ -367,7 +373,7 @@ def get_type(node):
 # Test the parser
 if __name__ == "__main__":
     # data = "(z − y < ε1 ⇒ y − x < ε2 ⇒ z − x ≥ ε1 + ε2)"
-    data = "y√z"
+    data = "2^3^2"
     data = substitute_user_defined_predicates(data)
     data = substitute_chained_predicates(data)
     data = transform_quantifiers(data)
