@@ -18,7 +18,7 @@ for predicate_name, details in user_defined_symbols["predicates"].items():
 combined_symbols_sorted = sorted(combined_symbols, key=lambda item: (item[2], item[1]))
 grouped_precedence = defaultdict(list)
 for name, symbol_type, precedence_level, associativity in combined_symbols_sorted:
-    if symbol_type == "infix":
+    if symbol_type == "infix" or symbol_type == "postfix":
         if associativity == "":
             grouped_precedence[(precedence_level, "left")].append(symbol_aliases[name] if name in symbol_aliases else name)
         else:
