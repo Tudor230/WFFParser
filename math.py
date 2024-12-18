@@ -31,8 +31,9 @@ for name, symbol_type, precedence_level, associativity in combined_symbols_sorte
 precedence = []
 for (precedence_level, assoc), names in sorted(grouped_precedence.items()):
     precedence.append((assoc, *names))
-precedence = static_precedence + precedence + [('right', 'NEG', 'LMODULE'), ('left', 'RMODULE')]
+precedence = static_precedence + precedence + [('right', 'NEG', 'LMODULE'), ('left', 'RMODULE'), ('right', 'EXISTS', 'FORALL', 'NEXISTS', 'HIGH')]
 precedence = tuple(precedence)
+print(precedence)
 
 def is_predicate(expr):
     """Check if the given expression is a predicate."""
@@ -93,9 +94,8 @@ def p_expression_unary(p):
         p[0] = (p[1], p[2])
     else:
         raise Exception(f"Error: Unary logical operator 'NOT' can only be used with predicates.")
-
-def p_expression_quantifier(p):
-    """expression : FORALL VARIABLE expression
+def p_quantifier(p):
+    """quantifier : FORALL VARIABLE expression
                   | EXISTS VARIABLE expression
                   | NEXISTS VARIABLE expression
                   | UEXISTS VARIABLE expression
@@ -103,6 +103,7 @@ def p_expression_quantifier(p):
                   | EXISTS expression expression
                   | NEXISTS expression expression
                   | UEXISTS expression expression"""
+
     # Might need to add a check for parentheses
     print(f"Detected quantifier expression: {p[1]} {p[2]} {p[3]}")
     if is_predicate(p[2]):
@@ -127,6 +128,11 @@ def p_expression_quantifier(p):
         p[0] = temp
     else:
         p[0] = (p[1], p[2], p[3])
+
+def p_expression_quantifier(p):
+    """expression : quantifier %prec HIGH"""
+    print(f"Detected quantifier : {p[1]}")
+    p[0] = p[1]
 
 def p_expression_group(p):
     """expression : LPAREN expression RPAREN"""
@@ -275,7 +281,7 @@ def p_error(p):
     else:
         print("Syntax error at end of input")
 
-parser = yacc.yacc(debug=False, write_tables=False)
+parser = yacc.yacc(debug=True, write_tables=False)
 
 
 def substitute_user_defined_predicates(shorthand):
@@ -373,7 +379,7 @@ def get_type(node):
 # Test the parser
 if __name__ == "__main__":
     # data = "(z − y < ε1 ⇒ y − x < ε2 ⇒ z − x ≥ ε1 + ε2)"
-    data = "xy^2"
+    data = "∀x∃y∀z(P(y, z)∨Q(x, y, z)) ⇒ (R(x, z, y)∨¬P(x, z))"
     data = substitute_user_defined_predicates(data)
     data = substitute_chained_predicates(data)
     data = transform_quantifiers(data)
