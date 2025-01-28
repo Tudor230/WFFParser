@@ -33,7 +33,6 @@ for (precedence_level, assoc), names in sorted(grouped_precedence.items()):
     precedence.append((assoc, *names))
 precedence = static_precedence + precedence + [('right', 'NEG', 'LMODULE'), ('left', 'RMODULE'), ('right', 'EXISTS', 'FORALL', 'NEXISTS', 'HIGH')]
 precedence = tuple(precedence)
-print(precedence)
 
 def is_predicate(expr):
     """Check if the given expression is a predicate."""
@@ -59,14 +58,6 @@ def p_module_expression(p):
     print(f"Detected module expression: {p[1]} {p[2]} {p[3]}")
     p[0] = ('|', p[2])
 
-def p_invisible_multiplication(p):
-    """expression : NUMBER expression %prec MULTIPLY
-                    | VARIABLE expression %prec MULTIPLY
-                    | CONSTANT expression %prec MULTIPLY
-                    | expression expression %prec MULTIPLY"""
-    # """expression : expression expression"""
-    print(f"Detected invisible multiplication between: {p[1]} {p[2]}")
-    p[0] = ('□□', p[1], p[2])
 
 def p_expression_base(p):
     """expression : VARIABLE
@@ -81,7 +72,7 @@ def p_expression_binary(p):
                   | expression OR expression
                   | expression IMPLIES expression
                   | expression IFF expression"""
-    print(f"Detected binary expression: {p[1]} {p[2]} {p[3]}")
+    print(f"Detected binary expression with {p[2]} connective and children: \n {p[1]} \n {p[3]}")
     if (is_predicate(p[1]) or p[1][0] in ["¬", "∧", "∨", "⇒", "⇔", "∀", "∃"]) and (is_predicate(p[3]) or p[3][0] in ["¬", "∧", "∨", "⇒", "⇔", "∀", "∃"]):
         p[0] = (p[2], p[1], p[3])
     else:
@@ -94,6 +85,7 @@ def p_expression_unary(p):
         p[0] = (p[1], p[2])
     else:
         raise Exception(f"Error: Unary logical operator 'NOT' can only be used with predicates.")
+
 def p_quantifier(p):
     """quantifier : FORALL VARIABLE expression
                   | EXISTS VARIABLE expression
@@ -105,7 +97,7 @@ def p_quantifier(p):
                   | UEXISTS expression expression"""
 
     # Might need to add a check for parentheses
-    print(f"Detected quantifier expression: {p[1]} {p[2]} {p[3]}")
+    print(f"Detected quantifier expression with {p[1]} quantifier, {p[2]} variable and child {p[3]}")
     if is_predicate(p[2]):
         p[3] = ( "⇒" if p[1] == "∀" else "∧", p[2], p[3])
         temp=""
@@ -131,7 +123,6 @@ def p_quantifier(p):
 
 def p_expression_quantifier(p):
     """expression : quantifier %prec HIGH"""
-    print(f"Detected quantifier : {p[1]}")
     p[0] = p[1]
 
 def p_expression_group(p):
@@ -141,6 +132,15 @@ def p_expression_group(p):
         p[0] = p[2]
     else:
         raise Exception(f"Error: Grouping parentheses can only be used with predicates or functions.")
+
+def p_invisible_multiplication(p):
+    """expression : NUMBER expression %prec MULTIPLY
+                    | VARIABLE expression %prec MULTIPLY
+                    | CONSTANT expression %prec MULTIPLY
+                    | expression expression %prec MULTIPLY"""
+    # """expression : expression expression"""
+    print(f"Detected invisible multiplication between: {p[1]} and {p[2]}")
+    p[0] = ('□□', p[1], p[2])
 
 
 
@@ -281,7 +281,7 @@ def p_error(p):
     else:
         print("Syntax error at end of input")
 
-parser = yacc.yacc(debug=True, write_tables=False)
+parser = yacc.yacc(debug=False, write_tables=False)
 
 
 def substitute_user_defined_predicates(shorthand):

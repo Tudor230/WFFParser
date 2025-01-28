@@ -140,7 +140,7 @@ def transform_to_normal_form(node, conversion_type):
             return None
         if node.name == op_list[0]:
             if op_list[1] in [child.name for child in node.children]:
-                all_children = [[grandchild for grandchild in child.children] if child.children else [child] for child in node.children]
+                all_children = [[duplicate_node(grandchild) for grandchild in child.children] if len(child.children) > 1 else [duplicate_node(child)] for child in node.children]
                 distributed_children = list(product(*all_children))
                 node.name = op_list[1]
                 node.children = []
