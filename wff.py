@@ -174,8 +174,41 @@ class LogicalWFFParser:
         vars_found = {leaf.name for leaf in node.leaves}
         return vars_found
 
+    # def evaluate_truth_table(self, node, values, intermediary_results=None):
+    #     # Ensure that all required variables are provided in the values dictionary
+    #     if intermediary_results is None:
+    #         intermediary_results = {}
+    #     required_vars = self.get_variables(node)
+    #     missing_vars = required_vars - values.keys()
+    #     if missing_vars:
+    #         raise Exception(f"Missing truth value for {missing_vars}")
+    #
+    #     # Check if result for this node is already computed
+    #     if node in intermediary_results:
+    #         return intermediary_results[node]
+    #
+    #     # Evaluate based on the type of logical operation in the node
+    #     if node.name == "¬":
+    #         result = not self.evaluate_truth_table(node.children[0], values, intermediary_results)
+    #     elif node.name == "∧":
+    #         result = all(self.evaluate_truth_table(child, values, intermediary_results) for child in node.children)
+    #     elif node.name == "∨":
+    #         result = any(self.evaluate_truth_table(child, values, intermediary_results) for child in node.children)
+    #     elif node.name == "⇒":
+    #         left_result = self.evaluate_truth_table(node.children[0], values, intermediary_results)
+    #         right_result = self.evaluate_truth_table(node.children[1], values, intermediary_results)
+    #         result = not left_result or right_result
+    #     elif node.name == "⇔":
+    #         left_result = self.evaluate_truth_table(node.children[0], values, intermediary_results)
+    #         right_result = self.evaluate_truth_table(node.children[1], values, intermediary_results)
+    #         result = left_result == right_result
+    #     else:
+    #         result = values[node.name]
+    #
+    #     intermediary_results[node] = result
+    #     return result
+
     def evaluate_truth_table(self, node, values, intermediary_results=None):
-        # Ensure that all required variables are provided in the values dictionary
         if intermediary_results is None:
             intermediary_results = {}
         required_vars = self.get_variables(node)
@@ -183,27 +216,52 @@ class LogicalWFFParser:
         if missing_vars:
             raise Exception(f"Missing truth value for {missing_vars}")
 
-        # Check if result for this node is already computed
+        # Generate node description
+        node_desc = get_node_expression(node)
+
         if node in intermediary_results:
+            print(f"Using cached result for {node_desc}: {intermediary_results[node]}")
             return intermediary_results[node]
 
         # Evaluate based on the type of logical operation in the node
         if node.name == "¬":
-            result = not self.evaluate_truth_table(node.children[0], values, intermediary_results)
+            print(f"Evaluating negation {node_desc}")
+            child_result = self.evaluate_truth_table(node.children[0], values, intermediary_results)
+            result = not child_result
+            print(f"Result of {node_desc}: {result}")
         elif node.name == "∧":
-            result = all(self.evaluate_truth_table(child, values, intermediary_results) for child in node.children)
+            print(f"Evaluating conjunction {node_desc}")
+            result = True
+            for child in node.children:
+                child_result = self.evaluate_truth_table(child, values, intermediary_results)
+                if not child_result:
+                    result = False
+                    break  # Short-circuit evaluation
+            print(f"Result of conjunction {node_desc}: {result}")
         elif node.name == "∨":
-            result = any(self.evaluate_truth_table(child, values, intermediary_results) for child in node.children)
+            print(f"Evaluating disjunction {node_desc}")
+            result = False
+            for child in node.children:
+                child_result = self.evaluate_truth_table(child, values, intermediary_results)
+                if child_result:
+                    result = True
+                    break  # Short-circuit evaluation
+            print(f"Result of disjunction {node_desc}: {result}")
         elif node.name == "⇒":
+            print(f"Evaluating implication {node_desc}")
             left_result = self.evaluate_truth_table(node.children[0], values, intermediary_results)
             right_result = self.evaluate_truth_table(node.children[1], values, intermediary_results)
             result = not left_result or right_result
+            print(f"Result of implication {node_desc}: {result}")
         elif node.name == "⇔":
+            print(f"Evaluating biconditional {node_desc}")
             left_result = self.evaluate_truth_table(node.children[0], values, intermediary_results)
             right_result = self.evaluate_truth_table(node.children[1], values, intermediary_results)
-            result = left_result == right_result
+            result = (left_result == right_result)
+            print(f"Result of biconditional {node_desc}: {result}")
         else:
             result = values[node.name]
+            print(f"Evaluating variable {node_desc}: {result}")
 
         intermediary_results[node] = result
         return result
