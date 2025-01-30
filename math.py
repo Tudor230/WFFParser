@@ -383,7 +383,7 @@ def get_type(node):
 if __name__ == "__main__":
     # data = "(z − y < ε1 ⇒ y − x < ε2 ⇒ z − x ≥ ε1 + ε2)"
     # data = "∀x∃y∀z(P(y, z)∨Q(x, y, z)) ⇒ (R(x, z, y)∨¬P(x, z))"
-    data = "∀3(x>3)"
+    data = "∃z((5+1)*y=4/5*x/y^2)"
     # data = substitute_user_defined_predicates(data)
     # data = substitute_chained_predicates(data)
     # data = transform_quantifiers(data)

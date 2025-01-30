@@ -46,6 +46,7 @@ def transform_to_nnf(node, indent=0):
             node_copy = deepcopy(node)
             new_node = Node("∨", parent=node.parent)
             for grandchild in child.children:
+                # Create a new negation node for each child of the conjunction
                 negated_child = Node("¬", parent=new_node)
                 negated_child.children = [transform_to_nnf(grandchild, indent + 1)]
             print("Transformed this formula:")
@@ -71,6 +72,7 @@ def transform_to_nnf(node, indent=0):
         elif child.name == "⇒":
             left, right = child.children
             new_node = Node("∧", parent=node.parent)
+            # Negate the left child and keep the right child as is
             negated_right = Node("¬", parent=new_node, children=[transform_to_nnf(duplicate_node(right), indent + 1)])
             new_node.children = [transform_to_nnf(duplicate_node(left), indent + 1), negated_right]
             print("Transformed this formula:")
@@ -102,6 +104,7 @@ def transform_to_nnf(node, indent=0):
     elif node.name == "⇒":
         left, right = node.children
         new_node = Node("∨", parent=node.parent)
+        # Negate the left child and keep the right child as is
         negated_left = Node("¬", parent=new_node, children=[transform_to_nnf(duplicate_node(left), indent + 1)])
         new_node.children = [negated_left, transform_to_nnf(duplicate_node(right), indent + 1)]
         print("Transformed this formula:")
@@ -113,6 +116,7 @@ def transform_to_nnf(node, indent=0):
     # Handle equivalences (⇔)
     elif node.name == "⇔":
         left, right = node.children
+        # Create mutual implications
         left_impl = Node("⇒", parent=node.parent, children=[duplicate_node(left), duplicate_node(right)])
         right_impl = Node("⇒", parent=node.parent, children=[duplicate_node(right), duplicate_node(left)])
         new_node = Node("∧", parent=node.parent, children=[left_impl, right_impl])
@@ -126,14 +130,15 @@ def transform_to_nnf(node, indent=0):
     elif node.name in ["∧", "∨"]:
         node.children = [transform_to_nnf(child) for child in node.children]
 
+    # Final simplification pass before returning
     return simplify_tree(Node(node.name, parent=node.parent, children=node.children))
 
 
 def transform_to_normal_form(node, conversion_type):
     if conversion_type == "dnf":
-        op_list = ["∧", "∨"]
+        op_list = ["∧", "∨"] # For DNF: distribute AND over OR
     else:
-        op_list = ["∨", "∧"]
+        op_list = ["∨", "∧"] # For CNF: distribute OR over AND
 
     def convert(node):
         if node is None:
@@ -141,24 +146,27 @@ def transform_to_normal_form(node, conversion_type):
         if node.name == op_list[0]:
             if op_list[1] in [child.name for child in node.children]:
                 all_children = [[duplicate_node(grandchild) for grandchild in child.children] if len(child.children) > 1 else [duplicate_node(child)] for child in node.children]
-                distributed_children = list(product(*all_children))
-                node.name = op_list[1]
+                distributed_children = list(product(*all_children)) # Generate Cartesian product of all child combinations for distribution
+                node.name = op_list[1]  # Convert current node to secondary operator
                 node.children = []
+                # Process each combination from the Cartesian product
                 for children in distributed_children:
                     print(f"Distributed {op_list[0]} over {op_list[1]}:")
+                    # Create new primary operator node with combined children
                     n = Node(op_list[0], children=[duplicate_node(child) for child in children])
                     print(get_node_expression(n))
+                    # Simplify the new node
                     simplified_n = simplify_tree(deepcopy(n))
                     if get_node_expression(simplified_n) != get_node_expression(n):
                         print("Which simplifies to:")
                         print(get_node_expression(simplified_n))
+                    # Add simplified node to current node's children
                     simplified_n.parent = node
                     print("Equivalent formula so far:")
                     print(get_node_expression(simplify_tree(deepcopy(node))))
 
-
-
-        for child in node.children[:]:
+        # Recursively process all children
+        for child in node.children[:]: # Iterate over copy as children might change
             convert(child)
         return node
 
