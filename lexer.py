@@ -37,6 +37,7 @@ user_defined_symbols = {
         "√": {"arity": 1, "type": "prefix", "precedence": 4, "parentheses": False},
         "^": {"arity": 2, "type": "infix", "precedence": 4, "associativity": "right"},
         "□□": {"arity": 2, "type": "infix", "precedence": 3},
+        "!": {"arity": 1, "type": "postfix", "precedence": 5},
     },
     "predicates": {
         "P": {"arity": 2, "type": "prefix", "precedence": 1},
@@ -68,7 +69,8 @@ symbol_aliases = {
     "√": "SQRT",
     "^": "POW",
     "-": "NEG",
-    "□□": "INVIS_MULTIPLY"
+    "□□": "INVIS_MULTIPLY",
+    "!": "FACTORIAL",
 }
 
 states = (
