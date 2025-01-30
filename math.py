@@ -76,7 +76,7 @@ def p_expression_binary(p):
     if (is_predicate(p[1]) or p[1][0] in ["¬", "∧", "∨", "⇒", "⇔", "∀", "∃"]) and (is_predicate(p[3]) or p[3][0] in ["¬", "∧", "∨", "⇒", "⇔", "∀", "∃"]):
         p[0] = (p[2], p[1], p[3])
     else:
-        raise Exception(f"Error: Binary logical operators can only be used between predicates.")
+        raise Exception(f"Error: Binary logical operators can only be used between formulas.")
 
 def p_expression_unary(p):
     """expression : NOT expression"""
@@ -84,7 +84,7 @@ def p_expression_unary(p):
     if is_predicate(p[2]) or p[2][0] in ["¬", "∧", "∨", "⇒", "⇔", "∀", "∃"]:
         p[0] = (p[1], p[2])
     else:
-        raise Exception(f"Error: Unary logical operator 'NOT' can only be used with predicates.")
+        raise Exception(f"Error: Unary logical operator 'NOT' can only be used with formulas.")
 
 def p_quantifier(p):
     """quantifier : FORALL VARIABLE expression
@@ -119,7 +119,10 @@ def p_quantifier(p):
                 temp = (p[1], tup[1], p[3])
         p[0] = temp
     else:
-        p[0] = (p[1], p[2], p[3])
+        if is_predicate(p[3]) or p[3][0] in ["¬", "∧", "∨", "⇒", "⇔", "∀", "∃"]:
+            p[0] = (p[1], p[2], p[3])
+        else:
+            raise Exception(f"Error: Quantifiers can only be used with formulas.")
 
 def p_expression_quantifier(p):
     """expression : quantifier %prec HIGH"""
@@ -279,7 +282,7 @@ def p_error(p):
         print(error_line)
         print(" " * position + "^")  # Point to the error
     else:
-        print("Syntax error at end of input")
+        raise Exception("Syntax error at end of input")
 
 parser = yacc.yacc(debug=False, write_tables=False)
 
@@ -379,10 +382,11 @@ def get_type(node):
 # Test the parser
 if __name__ == "__main__":
     # data = "(z − y < ε1 ⇒ y − x < ε2 ⇒ z − x ≥ ε1 + ε2)"
-    data = "∀x∃y∀z(P(y, z)∨Q(x, y, z)) ⇒ (R(x, z, y)∨¬P(x, z))"
-    data = substitute_user_defined_predicates(data)
-    data = substitute_chained_predicates(data)
-    data = transform_quantifiers(data)
+    # data = "∀x∃y∀z(P(y, z)∨Q(x, y, z)) ⇒ (R(x, z, y)∨¬P(x, z))"
+    data = "∀3(x>3)"
+    # data = substitute_user_defined_predicates(data)
+    # data = substitute_chained_predicates(data)
+    # data = transform_quantifiers(data)
     # data = add_invisible_multiplication(data)
     print(data.replace(" ", ""))
     try:
