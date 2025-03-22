@@ -1,7 +1,7 @@
 from itertools import product
 import re
 
-from LCS.WFFParser.resolver import *
+from resolver import *
 from formula_converter import *
 from ShuntingYard import ShuntingYardConverter
 from anytree import Node, RenderTree
