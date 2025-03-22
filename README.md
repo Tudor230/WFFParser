@@ -102,6 +102,7 @@ Install WFFParser using one of the following methods:
 For propositional logic:
 1. Run the `wff.py` file.
 2. Choose an option by entering the corresponding number and follow the on-screen prompts to input logical formulas.
+   
 For predicate logic:
 1. Modify the data variable to test different logical or mathematical expressions.
 2. Run the `math.py` file.
