@@ -54,9 +54,16 @@ The **WFFParser** is a Python-based parser designed to analyze and evaluate well
 ##  Project Structure
 
 ```sh
-└── WFFParser/
-    ├── LICENSE
-    └── wff.py
+WFFParser/
+	├── LICENSE
+	├── README.md
+	├── ShuntingYard.py
+	├── formula_converter.py
+	├── lexer.py
+	├── math.py
+	├── predicate.py
+	├── resolver.py
+	└── wff.py
 ```
 ---
 
@@ -67,7 +74,7 @@ The **WFFParser** is a Python-based parser designed to analyze and evaluate well
 Before getting started with WFFParser, ensure your runtime environment meets the following requirements:
 
 - **Programming Language:** Python 3.x
-- **Dependencies:** `anytree`, `itertools`
+- **Dependencies:** `anytree`, `itertools`, `ply`
 
 ###  Installation
 
@@ -88,34 +95,16 @@ Install WFFParser using one of the following methods:
 3. Install the project dependencies (use pip):
    ```sh
    ❯ pip install anytree
+   ❯ pip install ply
    ```
 
 ###  Usage
-To run the WFFParser, you will need to use the provided for loop within the code to test various propositions. The for loop is structured to parse a list of logical formulas and evaluate them. Here is how you can do it:
-
-1. Open the `wff.py` file.
-2. Locate the following section in the code:
-    ```python
-    # Testing with propositions
-    propositions = [
-        "(¬(P ∧ Q))",
-        "(¬P ∨ (Q ∧ R))",
-        ...
-    ]
-
-    values = [
-        {"P": True, "Q": False},
-        {"P": True, "Q": True}
-    ]
-
-    for prop in propositions:
-        parser = LogicalWFFParser(prop)
-        ...
-    ```
-3. Modify the `propositions` list to include your own logical formulas.
-4. You can also modify the `values` list to change the truth assignments for the variables in your propositions.
-5. Run the script to see the results of the parsing and evaluations.
-
+For propositional logic:
+1. Run the `wff.py` file.
+2. Choose an option by entering the corresponding number and follow the on-screen prompts to input logical formulas.
+For predicate logic:
+1. Modify the data variable to test different logical or mathematical expressions.
+2. Run the `math.py` file.
 
 ---
 
